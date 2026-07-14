@@ -30,7 +30,7 @@ input:focus,select:focus{border-color:var(--g)}
 
 .topbar{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--card);border-bottom:1px solid var(--brd);position:sticky;top:0;z-index:100}
 .topbar h1{font-size:14px;font-weight:600;color:var(--g2)}
-.topbar .sub{font-size:11px;color:var(--txt2)}
+.topbar .sub{font-size:15px;color:#1A6B3C;font-weight:800;letter-spacing:.2px}
 
 .controls{display:flex;gap:6px;padding:10px 14px;flex-wrap:wrap;align-items:center;background:var(--bg);border-bottom:1px solid var(--brd)}
 .controls select{flex:0 0 auto;min-width:60px;font-size:15px;font-weight:600;padding:6px 8px;background:#FFFDE7}
@@ -43,29 +43,29 @@ input:focus,select:focus{border-color:var(--g)}
 
 .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;background:var(--card)}
 .tbl{border-collapse:collapse;width:100%;min-width:860px}
-.tbl th{position:sticky;top:0;background:#f5f5f2;font-size:8.5px;font-weight:700;color:var(--txt2);padding:4px 2px;border-bottom:2px solid var(--brd);text-align:center;white-space:nowrap;text-transform:uppercase;letter-spacing:.3px;z-index:10}
+.tbl th{position:sticky;top:0;background:#f5f5f2;font-size:10px;font-weight:700;color:var(--txt2);padding:4px 1px;border-bottom:2px solid var(--brd);text-align:center;white-space:nowrap;text-transform:uppercase;letter-spacing:.2px;z-index:10}
 .tbl .hg{background:var(--g3);color:var(--g2)}
 .tbl .hi{background:var(--amb-bg);color:var(--amb)}
 .tbl .ha{background:var(--red-bg);color:#A32D2D}
 .tbl .hp{background:var(--perm-bg);color:var(--perm)}
 .tbl .hs{background:var(--prp-bg);color:var(--prp)}
-.tbl td{padding:2px 1px;vertical-align:middle;text-align:center;border-bottom:1px solid #f0eee9}
+.tbl td{padding:2px 0;vertical-align:middle;text-align:center;border-bottom:1px solid #f0eee9}
 .tbl tr:hover{background:#fff}
 .tbl tr.we{background:#E1E1E1}
 .tbl tr.fest{background:#ffcccc}
 .tbl tr.fe{background:#FEF6F6}
 .tbl tr.fe .bk{opacity:.18;pointer-events:none}
 .tbl tr.pe .bka{opacity:.18;pointer-events:none}
-.tbl .dc{font-weight:700;font-size:12px;text-align:right;padding-right:3px;width:22px}
-.tbl .dn{font-size:10px;color:var(--txt2);text-align:left;width:24px}
+.tbl .dc{font-weight:700;font-size:14px;text-align:right;padding-right:2px;width:22px}
+.tbl .dn{font-size:12px;color:var(--txt2);text-align:left;width:26px}
 .tbl .dn.red{color:var(--red);font-weight:700}
 .tbl .tc{font-weight:700;color:var(--g2);font-size:11px;width:40px;padding-right:4px;font-family:Calibri,Arial,Helvetica,sans-serif}
 .tbl .sep{border-left:1.5px solid #eae8e3}
-.ti{width:44px;font-size:11px;font-weight:700;padding:3px 1px;border:1px solid #e0ddd8;border-radius:3px;text-align:center;font-family:Calibri,Arial,Helvetica,sans-serif;background:#FFFDE7;color:var(--txt);text-transform:uppercase}
+.ti{width:48px;font-size:15px;font-weight:700;padding:4px 0;border:1px solid #e0ddd8;border-radius:3px;text-align:center;font-family:Calibri,Arial,Helvetica,sans-serif;background:#FFFDE7;color:var(--txt);text-transform:uppercase}
 .ti:focus{border-color:var(--g);background:#f0faf5;outline:none}
-.sl{font-size:9.5px;padding:3px 1px;border:1px solid #e0ddd8;border-radius:3px;background:#FFFDE7;width:100%;font-family:Calibri,Arial,Helvetica,sans-serif;text-transform:uppercase}
+.sl{font-size:12px;padding:4px 1px;border:1px solid #e0ddd8;border-radius:3px;background:#FFFDE7;width:100%;font-family:Calibri,Arial,Helvetica,sans-serif;text-transform:uppercase}
 .sl:focus{border-color:var(--g);outline:none}
-.mot{width:100%;min-width:70px;font-size:10px;padding:3px 4px;border:1px solid #e0ddd8;border-radius:3px;background:#FFFDE7;font-family:Calibri,Arial,Helvetica,sans-serif;text-transform:uppercase}
+.mot{width:100%;min-width:70px;font-size:12px;padding:4px 4px;border:1px solid #e0ddd8;border-radius:3px;background:#FFFDE7;font-family:Calibri,Arial,Helvetica,sans-serif;text-transform:uppercase}
 .mot:focus{border-color:var(--g);outline:none}
 .tag{display:inline-block;font-size:7.5px;padding:1px 4px;border-radius:3px;font-weight:700}
 .tag-r{background:var(--red-bg);color:#A32D2D}
@@ -96,7 +96,7 @@ input:focus,select:focus{border-color:var(--g)}
 .admin-mode{font-size:15px}
 .admin-mode .topbar{padding:16px 24px}
 .admin-mode .topbar h1{font-size:20px}
-.admin-mode .topbar .sub{font-size:14px}
+.admin-mode .topbar .sub{font-size:16px}
 .admin-mode .tabs-admin{padding:12px 24px;gap:8px}
 .admin-mode .tab-a{padding:10px 20px;font-size:15px;border-radius:20px}
 .admin-mode .controls{padding:12px 24px;gap:10px}
@@ -111,9 +111,9 @@ input:focus,select:focus{border-color:var(--g)}
 .admin-mode .tbl .dc{font-size:15px}
 .admin-mode .tbl .dn{font-size:13px}
 .admin-mode .tbl .tc{font-size:15px;width:56px}
-.admin-mode .ti{font-size:14px;width:54px;padding:5px 2px}
-.admin-mode .sl{font-size:12px;padding:5px 2px}
-.admin-mode .mot{font-size:12px;padding:5px 4px}
+.admin-mode .ti{font-size:16px;width:56px;padding:5px 0}
+.admin-mode .sl{font-size:13px;padding:5px 1px}
+.admin-mode .mot{font-size:13px;padding:5px 4px}
 .admin-mode .sum-tbl{font-size:15px}
 .admin-mode .sum-tbl th{font-size:13px;padding:10px 8px}
 .admin-mode .sum-tbl td{padding:8px 8px}
@@ -228,6 +228,26 @@ function calcOrd(e){let t=0;const a=parseT(e.t1f),b=parseT(e.t1t);if(a!==null&&b
 function calcInd(e){const a=parseT(e.iF),b=parseT(e.iT);if(a!==null&&b!==null&&b>a)return b-a;return 0}
 function tsId(uid,y,m,si){return uid+"__"+y+"_"+m+"_"+si}
 function esc(s){if(!s)return"";return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+// Restituisce solo il NOME per i saluti (senza cognome)
+function soloNome(){
+  if(CUD&&CUD.nome)return CUD.nome;
+  // Fallback per account senza campo nome: name è "COGNOME NOME", prendo l'ultima parola
+  const n=(CUD&&CUD.name)?CUD.name.trim():"";
+  const parts=n.split(/\s+/);
+  return parts.length?parts[parts.length-1]:n;
+}
+// Box istruzioni elementari, richiudibile (aperto di default), per singola pagina
+let instrOpen={};
+function instrBox(testo,key){
+  const k=key||"def";
+  const aperto=instrOpen[k]!==false;
+  let s=`<div style="max-width:900px;margin:0 auto 16px;background:#FFF9E6;border:2px solid #FFD54F;border-radius:12px;overflow:hidden">`;
+  s+=`<div onclick="instrOpen['${k}']=${aperto?"false":"true"};(CUD.role==='admin'?renderAdmin:CUD.role==='viewer'?renderViewer:renderWorker)()" style="padding:10px 16px;background:#FFF3CD;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:800;color:#7B6A00;font-size:14px"><span>💡 Come funziona questa pagina?</span><span style="font-size:18px">${aperto?"▲":"▼"}</span></div>`;
+  if(aperto)s+=`<div style="padding:14px 18px;font-size:14px;line-height:1.6;color:#5A4E00">${testo}</div>`;
+  s+=`</div>`;
+  return s;
+}
+
 
 let CU=null,CUD=null,cache={};
 const $=id=>document.getElementById(id);
@@ -239,7 +259,7 @@ $("auth-btn").onclick=async()=>{
   const em=$("email").value.trim(),pw=$("password").value;
   if(!em||!pw){sErr("Compila tutti i campi");return}
   $("auth-btn").disabled=true;$("auth-btn").textContent="...";
-  try{if(isReg){const cognome=($("reg-cognome").value||"").trim();const nome=($("reg-nome").value||"").trim();if(!cognome||!nome){sErr("Inserisci sia cognome che nome");$("auth-btn").disabled=false;$("auth-btn").textContent="Crea account";return}if(COMMON_NAMES.includes(cognome.toUpperCase())){if(!confirm('Attenzione: hai scritto "'+cognome+'" nel campo COGNOME, ma sembra un NOME proprio.\n\nHai forse invertito cognome e nome?\n\nClicca ANNULLA per correggere, oppure OK se "'+cognome+'" è davvero il tuo cognome.')){$("auth-btn").disabled=false;$("auth-btn").textContent="Crea account";return}}const nm=cognome.toUpperCase()+" "+nome.toUpperCase();const c=await auth.createUserWithEmailAndPassword(em,pw);await db.collection("users").doc(c.user.uid).set({name:nm,email:em,role:em.toLowerCase()===ADMIN_EMAIL.toLowerCase()?"admin":"worker",createdAt:firebase.firestore.FieldValue.serverTimestamp()})}else{await auth.signInWithEmailAndPassword(em,pw)}}catch(e){let m="Errore";if(e.code==="auth/user-not-found"||e.code==="auth/wrong-password"||e.code==="auth/invalid-credential")m="Email o password errati";else if(e.code==="auth/email-already-in-use")m="Email già registrata";else if(e.code==="auth/weak-password")m="Password troppo corta (min 6 caratteri)";else m=e.message;sErr(m);$("auth-btn").disabled=false;$("auth-btn").textContent=isReg?"Crea account":"Accedi"}
+  try{if(isReg){const cognome=($("reg-cognome").value||"").trim();const nome=($("reg-nome").value||"").trim();if(!cognome||!nome){sErr("Inserisci sia cognome che nome");$("auth-btn").disabled=false;$("auth-btn").textContent="Crea account";return}if(COMMON_NAMES.includes(cognome.toUpperCase())){if(!confirm('Attenzione: hai scritto "'+cognome+'" nel campo COGNOME, ma sembra un NOME proprio.\n\nHai forse invertito cognome e nome?\n\nClicca ANNULLA per correggere, oppure OK se "'+cognome+'" è davvero il tuo cognome.')){$("auth-btn").disabled=false;$("auth-btn").textContent="Crea account";return}}const nm=cognome.toUpperCase()+" "+nome.toUpperCase();const c=await auth.createUserWithEmailAndPassword(em,pw);await db.collection("users").doc(c.user.uid).set({name:nm,nome:nome.toUpperCase(),cognome:cognome.toUpperCase(),email:em,role:em.toLowerCase()===ADMIN_EMAIL.toLowerCase()?"admin":"worker",createdAt:firebase.firestore.FieldValue.serverTimestamp()})}else{await auth.signInWithEmailAndPassword(em,pw)}}catch(e){let m="Errore";if(e.code==="auth/user-not-found"||e.code==="auth/wrong-password"||e.code==="auth/invalid-credential")m="Email o password errati";else if(e.code==="auth/email-already-in-use")m="Email già registrata";else if(e.code==="auth/weak-password")m="Password troppo corta (min 6 caratteri)";else m=e.message;sErr(m);$("auth-btn").disabled=false;$("auth-btn").textContent=isReg?"Crea account":"Accedi"}
 };
 function sErr(m){$("auth-error").textContent=m;$("auth-error").classList.remove("hide")}
 
@@ -252,27 +272,55 @@ async function loadTS(uid,y,m,si){const k=tsId(uid,y,m,si);if(cache[k]!==undefin
 async function saveTS(uid,y,m,si,days,mansione,sede,dettagli,comune,alunno,wName){const k=tsId(uid,y,m,si);const p={days,mansione:mansione||"",sede:sede||"",dettagli:dettagli||"",comune:comune||"",alunno:alunno||"",workerUid:uid,workerName:wName||"",year:y,month:m,serviceIdx:si,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};cache[k]=p;try{await db.collection("timesheets").doc(k).set(p)}catch(e){console.error(e)}}
 
 // ========== WORKER VIEW ==========
-let ws={year:new Date().getFullYear(),month:new Date().getMonth()+1,si:0,view:"foglio"};
+let ws={year:new Date().getFullYear(),month:new Date().getMonth()+1,si:0,view:"home"};
 let monthLocked=false;
 async function isMonthLocked(y,m){
   try{const d=await db.collection("locks").doc(y+"_"+m).get();return d.exists&&d.data().locked===true}catch(e){return false}
 }
 // ========== I MIEI SERVIZI (home operatore) ==========
+async function renderHomeOperatore(){
+  const isEditor=CUD.role==="editor";
+  let h=`<div class="topbar"><div><h1>Spazio Ireos</h1><div class="sub">${esc(CUD.name)}</div></div><div style="display:flex;gap:6px">${isEditor?`<button class="btn-o btn-s" style="background:#F3E8FD;color:#7B1FA2;border:1px solid #D1B3F0" onclick="ws.view='light';renderWorker()">🗂️ Operatori light</button>`:""}<button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div></div>`;
+  h+=`<div style="padding:20px 16px"><div style="text-align:center;margin-bottom:18px">`;
+  h+=`<svg width="88" height="72" viewBox="0 0 88 72" style="margin-bottom:6px">`;
+  h+=`<rect x="14" y="26" width="16" height="40" rx="2" fill="#DC143C" stroke="#9E0F2C" stroke-width="2" transform="rotate(-6 22 46)"/>`;
+  h+=`<rect x="32" y="22" width="16" height="44" rx="2" fill="#2C6B91" stroke="#1B4A66" stroke-width="2"/>`;
+  h+=`<rect x="50" y="26" width="16" height="40" rx="2" fill="#E5BE01" stroke="#B49500" stroke-width="2" transform="rotate(5 58 46)"/>`;
+  h+=`<rect x="17" y="32" width="10" height="3" fill="#fff" opacity="0.7" transform="rotate(-6 22 46)"/>`;
+  h+=`<rect x="35" y="28" width="10" height="3" fill="#fff" opacity="0.7"/>`;
+  h+=`<rect x="53" y="32" width="10" height="3" fill="#fff" opacity="0.7" transform="rotate(5 58 46)"/>`;
+  h+=`<circle cx="44" cy="12" r="6" fill="#FFD54F" stroke="#F5A623" stroke-width="1.5"/>`;
+  h+=`<path d="M40 12 L43 15 L48 9" stroke="#7B6A00" stroke-width="1.5" fill="none" stroke-linecap="round"/>`;
+  h+=`</svg>`;
+  h+=`<div style="font-size:26px;font-weight:900;color:#1A6B3C">Ciao ${esc(soloNome())}! 👋</div>`;
+  h+=`<div style="font-size:15px;color:var(--txt2)">Cosa vuoi fare?</div></div>`;
+  h+=instrBox("Da qui scegli cosa fare. Clicca il riquadro <b>rosso</b> se devi <b>preparare</b> un nuovo servizio (scrivere dove lavori). Clicca il riquadro <b>rosa</b> se vuoi <b>vedere</b> i servizi che hai già preparato: da lì potrai poi entrare nel <b>foglio ore</b> per segnare le ore.");
+  h+=`<div style="display:flex;gap:16px;flex-wrap:wrap;max-width:900px;margin:0 auto">`;
+  // LEFT rectangle: crimson, white text -> configure a service
+  h+=`<button onclick="ws.view='servizi';renderWorker()" style="flex:1;min-width:280px;background:#DC143C;color:#fff;border:none;border-radius:16px;padding:36px 26px;cursor:pointer;box-shadow:0 4px 14px rgba(220,20,60,.3);transition:transform .1s;text-align:center" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">`;
+  h+=`<div style="font-size:44px;margin-bottom:12px">⚙️</div>`;
+  h+=`<div style="font-size:19px;font-weight:900;line-height:1.35">QUI PUOI CLICCARE SE DEVI CONFIGURARE UN SERVIZIO</div>`;
+  h+=`</button>`;
+  // RIGHT rectangle: antique pink, electric blue text -> access already configured
+  h+=`<button onclick="ws.view='riepilogo';renderWorker()" style="flex:1;min-width:280px;background:#F0D9DC;color:#0047FF;border:none;border-radius:16px;padding:36px 26px;cursor:pointer;box-shadow:0 4px 14px rgba(0,71,255,.15);transition:transform .1s;text-align:center" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">`;
+  h+=`<div style="font-size:44px;margin-bottom:12px">👀</div>`;
+  h+=`<div style="font-size:19px;font-weight:900;line-height:1.35">QUI PUOI CLICCARE SE DEVI ACCEDERE A SERVIZI CHE HAI GIÀ CONFIGURATO</div>`;
+  h+=`</button>`;
+  h+=`</div></div>`;
+  $("app-main").innerHTML=h;
+}
 async function renderMieiServizi(){
   const uid=CU.uid;
   const y=new Date().getFullYear(),m=new Date().getMonth()+1;
   // Load current month services as the "anagrafica"
   const svcs=await Promise.all(SVC.map((_,i)=>loadTS(uid,y,m,i)));
-  let h=`<div class="topbar"><div><h1>I miei servizi</h1><div class="sub">${esc(CUD.name)}</div></div><div style="display:flex;gap:6px"><button class="btn-o btn-s" style="background:#E8F5E9;color:#1A6B3C;border:1px solid #A9D9BE" onclick="ws.view='foglio';renderWorker()">📋 Vai al foglio ore</button><button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div></div>`;
-  h+=`<div style="margin:14px;padding:18px 20px;background:linear-gradient(135deg,#FFF3CD,#FFE69C);border:3px solid #E5BE01;border-radius:12px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.1)">`;
-  h+=`<div style="font-size:20px;font-weight:900;color:#7B6A00;margin-bottom:4px">📋 QUI CONFIGURA I TUOI SERVIZI</div>`;
-  h+=`<div style="font-size:14px;color:#8A7500;font-weight:600">Puoi aggiungerne quando vuoi! ✨</div>`;
+  let h=`<div class="topbar"><div><h1>I miei servizi</h1><div class="sub">${esc(CUD.name)}</div></div><div style="display:flex;gap:6px"><button class="btn-o btn-s" style="background:#E8F4FD;color:#1565C0;border:1px solid #A3D0F5" onclick="ws.view='home';renderWorker()">🏠 Home</button><button class="btn-o btn-s" style="background:#F0D9DC;color:#0047FF;border:1px solid #E0B8BE" onclick="ws.view='riepilogo';renderWorker()">👀 Servizi configurati</button><button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div></div>`;
+  h+=`<div style="margin:14px 14px 0;padding:16px 20px;background:linear-gradient(135deg,#FFF3CD,#FFE69C);border:3px solid #E5BE01;border-radius:12px;text-align:center">`;
+  h+=`<div style="font-size:19px;font-weight:900;color:#7B6A00">⚙️ CONFIGURA I TUOI SERVIZI</div>`;
+  h+=`<div style="font-size:13px;color:#8A7500;font-weight:600;margin-top:3px">Puoi aggiungerne quando vuoi! ✨</div>`;
   h+=`</div>`;
-  h+=`<div style="margin:0 14px 14px;text-align:center">`;
-  h+=`<button style="padding:14px 24px;font-size:15px;font-weight:800;background:#1565C0;color:#fff;border:none;border-radius:10px;cursor:pointer;box-shadow:0 2px 6px rgba(21,101,192,.3)" onclick="ws.view='riepilogo';renderWorker()">👀 SE VUOI VEDERE ORA I TUOI SERVIZI CONFIGURATI CLICCA QUI</button>`;
-  h+=`</div>`;
-  h+=`<div style="padding:12px 16px;background:#E8F4FD;border-top:1px solid #A3D0F5;border-bottom:1px solid #A3D0F5;font-size:13px;line-height:1.5;color:#1565C0">Ogni mese ritroverai il foglio già precompilato con questi dati. Puoi <strong>correggere</strong> i dati di un servizio: se usi il pulsante "Applica a tutti i mesi", la correzione verrà propagata a tutti i tuoi fogli passati e futuri.</div>`;
-  h+=`<div style="padding:14px">`;
+  h+=`<div style="padding:14px 14px 0">`+instrBox("Ogni riquadro qui sotto è un <b>servizio</b> (un posto dove lavori). Per prepararne uno: scegli la <b>Mansione</b> (che lavoro fai), la <b>Sede</b> (Scuola, Casa di Quartiere…), scrivi la <b>Via</b>, il <b>Comune</b> e, se serve, il nome dell'<b>alunno</b>. Poi premi <b>💾 Salva</b>. Se correggi un dato e premi <b>Applica a tutti i mesi</b>, la correzione va su tutti i tuoi fogli.","cfg")+`</div>`;
+  h+=`<div style="padding:0 14px 14px">`;
   for(let i=0;i<20;i++){
     const s=svcs[i];
     const hasData=s&&s.mansione;
@@ -304,14 +352,14 @@ async function renderRiepilogoServizi(){
   const uid=CU.uid;
   const y=new Date().getFullYear(),m=new Date().getMonth()+1;
   const svcs=await Promise.all(SVC.map((_,i)=>loadTS(uid,y,m,i)));
-  let h=`<div class="topbar"><div><h1>I tuoi servizi configurati</h1><div class="sub">${esc(CUD.name)}</div></div><div style="display:flex;gap:6px"><button class="btn-o btn-s" style="background:#FFF3CD;color:#7B6A00;border:1px solid #E5BE01" onclick="ws.view='servizi';renderWorker()">⚙️ Configura</button><button class="btn-o btn-s" style="background:#E8F5E9;color:#1A6B3C;border:1px solid #A9D9BE" onclick="ws.view='foglio';renderWorker()">📋 Foglio ore</button><button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div></div>`;
+  let h=`<div class="topbar"><div><h1>I tuoi servizi configurati</h1><div class="sub">${esc(CUD.name)}</div></div><div style="display:flex;gap:6px"><button class="btn-o btn-s" style="background:#E8F4FD;color:#1565C0;border:1px solid #A3D0F5" onclick="ws.view='home';renderWorker()">🏠 Home</button><button class="btn-o btn-s" style="background:#FFF3CD;color:#7B6A00;border:1px solid #E5BE01" onclick="ws.view='servizi';renderWorker()">⚙️ Configura</button><button class="btn-o btn-s" style="background:#E8F5E9;color:#1A6B3C;border:1px solid #A9D9BE" onclick="ws.view='foglio';renderWorker()">📋 Foglio ore</button><button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div></div>`;
   let anyConfigured=false;
   for(let i=0;i<20;i++){if(svcs[i]&&svcs[i].mansione)anyConfigured=true}
   if(!anyConfigured){
     h+=`<div style="padding:40px 20px;text-align:center;color:var(--txt2)"><div style="font-size:16px;margin-bottom:12px">Non hai ancora configurato nessun servizio.</div><button style="padding:12px 20px;font-size:14px;font-weight:700;background:#FFF3CD;color:#7B6A00;border:2px solid #E5BE01;border-radius:8px;cursor:pointer" onclick="ws.view='servizi';renderWorker()">⚙️ Vai a configurare i servizi</button></div>`;
     $("app-main").innerHTML=h;return;
   }
-  h+=`<div style="padding:16px 14px"><div style="font-size:13px;color:var(--txt2);margin-bottom:14px;text-align:center">Ecco i servizi che hai configurato. Ognuno ha un suo colore, lo ritroverai uguale nel foglio ore.</div>`;
+  h+=`<div style="padding:16px 14px">`+instrBox("Qui vedi tutti i servizi che hai già <b>preparato</b>. Ognuno è un rettangolo con il suo <b>colore</b>: lo ritroverai uguale nel foglio ore, così li riconosci al volo. Se vuoi cambiarli, usa il pulsante <b>⚙️ Configura</b> in alto.","rie")+`<div style="font-size:13px;color:var(--txt2);margin-bottom:14px;text-align:center">Ecco i servizi che hai configurato. Ognuno ha un suo colore, lo ritroverai uguale nel foglio ore.</div>`;
   h+=`<div style="display:flex;flex-direction:column;gap:10px">`;
   for(let i=0;i<20;i++){
     const s=svcs[i];
@@ -395,6 +443,7 @@ async function renderLightEditor(){
   const uid=CU.uid;const y=ls.year;
   const ops=await loadLightOps(uid);
   let h=`<div class="topbar"><div><h1>🗂️ Operatori light</h1><div class="sub">${esc(CUD.name)} — Editor</div></div><div style="display:flex;gap:6px"><button class="btn-o btn-s" style="background:#E8F5E9;color:#1A6B3C;border:1px solid #A9D9BE" onclick="ws.view='foglio';renderWorker()">📋 Il mio foglio ore</button><button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div></div>`;
+  h+=`<div style="padding:14px 14px 0">`+instrBox("Qui gestisci gli <b>operatori light</b>: persone che fanno poche ore e non hanno un loro accesso. Premi <b>➕ Aggiungi operatore light</b> per inserirne uno (nome, ruolo, se è pagato o volontario). Poi scrivi le <b>ore mese per mese</b> nella tabella, a quarti d'ora (0,25 · 0,50 · 0,75 o numeri interi). Puoi inserire la stessa persona più volte se insegna materie diverse.","led")+`</div>`;
   // Controls
   h+=`<div style="padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--brd);background:var(--bg)">`;
   h+=`<label style="font-size:12px;font-weight:600">Anno:</label><select style="font-size:13px;padding:5px 8px" onchange="ls.year=+this.value;renderLightEditor()">`;
@@ -527,6 +576,7 @@ window.saveLightSkip=async function(opId,y,ci,v){
 
 let _rendering=false;
 async function renderWorker(){
+  if(ws.view==="home"){renderHomeOperatore();return}
   if(ws.view==="servizi"){renderMieiServizi();return}
   if(ws.view==="riepilogo"){renderRiepilogoServizi();return}
   if(ws.view==="light"){renderLightEditor();return}
@@ -561,38 +611,42 @@ async function renderWorker(){
   const nd=daysIn(m,y);
   const hasMansione=!!mansione;
   const allReq=hasMansione&&!!sede&&!!dettagli&&!!comune;
-  let h=`<div class="topbar"><div><h1>Spazio Ireos</h1><div class="sub">${esc(CUD.name)}</div></div><div style="display:flex;gap:6px">${CUD.role==="editor"?`<button class="btn-o btn-s" style="background:#F3E8FD;color:#7B1FA2;border:1px solid #D1B3F0" onclick="ws.view='light';renderWorker()">🗂️ Operatori light</button>`:""}<button class="btn-o btn-s" style="background:#E8F4FD;color:#1565C0;border:1px solid #A3D0F5" onclick="ws.view='servizi';renderWorker()">🏠 I miei servizi</button><button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div></div>`;
+  let h=`<div class="topbar"><div><h1>Spazio Ireos</h1><div class="sub">${esc(CUD.name)}</div></div><div style="display:flex;gap:6px">${CUD.role==="editor"?`<button class="btn-o btn-s" style="background:#F3E8FD;color:#7B1FA2;border:1px solid #D1B3F0" onclick="ws.view='light';renderWorker()">🗂️ Operatori light</button>`:""}<button class="btn-o btn-s" style="background:#F0D9DC;color:#0047FF;border:1px solid #E0B8BE" onclick="ws.view='riepilogo';renderWorker()">👀 Servizi configurati</button><button class="btn-o btn-s" style="background:#E8F4FD;color:#1565C0;border:1px solid #A3D0F5" onclick="ws.view='home';renderWorker()">🏠 Home</button><button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div></div>`;
   h+=`<div class="controls"><select onchange="ws.year=+this.value;renderWorker()">`;
   for(let yy=2025;yy<=2035;yy++)h+=`<option value="${yy}"${yy===y?" selected":""}>${yy}</option>`;
   h+=`</select><select onchange="ws.month=+this.value;renderWorker()">`;
   MONTHS.forEach((mn,i)=>h+=`<option value="${i+1}"${i+1===m?" selected":""}>${mn}</option>`);
   h+=`</select><button id="btn-save" style="padding:5px 12px;font-size:11px;font-weight:600;background:#1D9E75;color:#fff;border:none;border-radius:var(--rad);cursor:pointer;margin-left:6px;${monthLocked?'display:none':''}" onclick="manualSave()">💾 Salva</button></div>`;
   h+=`<div class="svc-tabs">`;
-  SVC.forEach((l,i)=>{const ac=i===si?"active":"";const nm=names[i]?`<span class="sn">${esc(names[i])}</span>`:"";const tabCol=i===si?`background:${SVC_COLORS[i]};border-color:#333;color:#1a1a1a`:"";h+=`<button class="svc-tab ${ac}" style="${tabCol}" onclick="ws.si=${i};renderWorker()">${SVC_LABELS[i]}${nm}</button>`});
+  SVC.forEach((l,i)=>{const ac=i===si?"active":"";const configured=!!names[i];const nm=configured?`<span class="sn">${esc(names[i])}</span>`:`<span class="sn" style="color:#DC143C;font-weight:800">⚠️ DA CONFIGURARE</span>`;const tabCol=i===si?`background:${SVC_COLORS[i]};border-color:#333;color:#1a1a1a`:(configured?"":"background:#FFF0F0;border-color:#DC143C");h+=`<button class="svc-tab ${ac}" style="${tabCol}" onclick="ws.si=${i};renderWorker()">${SVC_LABELS[i]}${nm}</button>`});
   h+=`</div>`;
   if(monthLocked){
     h+=`<div style="padding:10px 14px;background:#FCEBEB;border-bottom:2px solid #E24B4A;text-align:center;font-weight:700;color:#A32D2D;font-size:13px">🔒 Mese chiuso dall'amministratore — non modificabile</div>`;
   }
   const lkd=monthLocked?"disabled":"";
   const svcBg=SVC_COLORS[si]||"var(--bg)";
+  const isConfigured=!!names[si];
   // Colored band indicating current service
   h+=`<div style="padding:6px 14px;background:${svcBg};border-bottom:2px solid rgba(0,0,0,.08);font-size:12px;font-weight:700;color:#333">📋 Stai compilando: ${SVC_LABELS[si]}</div>`;
-  // Mansione + Sede + Via/Piazza + Comune + Alunno
-  h+=`<div style="display:flex;gap:6px;padding:6px 14px;background:${svcBg};border-bottom:1px solid var(--brd);flex-wrap:wrap">`;
-  h+=`<div style="flex:1;min-width:140px"><label style="font-size:10px;color:var(--txt2);font-weight:600;display:block;margin-bottom:2px">Mansione *</label><select ${lkd} style="width:100%;font-size:11px;padding:6px 8px;background:#FFFDE7;border:1.5px solid ${hasMansione?'var(--brd)':'var(--red)'};border-radius:var(--rad)" onchange="saveMansione(this.value)">`;
-  MANSIONI.forEach(mt=>{const sel=mansione===mt?" selected":"";h+=`<option value="${esc(mt)}"${sel}>${mt||"— seleziona mansione —"}</option>`});
-  h+=`</select></div>`;
-  h+=`<div style="flex:1;min-width:120px"><label style="font-size:10px;color:var(--txt2);font-weight:600;display:block;margin-bottom:2px">Sede *</label><select ${lkd} style="width:100%;font-size:11px;padding:6px 8px;background:#FFFDE7;border:1.5px solid ${sede?'var(--brd)':'var(--red)'};border-radius:var(--rad)" onchange="saveSede(this.value)">`;
-  SEDI.forEach(s=>{const sel=sede===s?" selected":"";h+=`<option value="${esc(s)}"${sel}>${s||"— seleziona sede —"}</option>`});
-  h+=`</select></div>`;
-  h+=`<div style="flex:1;min-width:120px"><label style="font-size:10px;color:var(--txt2);font-weight:600;display:block;margin-bottom:2px">Via/Piazza *</label><input ${lkd} value="${esc(dettagli)}" placeholder="Indirizzo della sede" style="font-size:11px;padding:6px 8px;background:#FFFDE7;border:1.5px solid ${dettagli?'var(--brd)':'var(--red)'};border-radius:var(--rad)" oninput="saveDettagli(this.value)"></div>`;
-  h+=`<div style="flex:1;min-width:100px"><label style="font-size:10px;color:var(--txt2);font-weight:600;display:block;margin-bottom:2px">Comune *</label><input ${lkd} value="${esc(comune)}" placeholder="Es: Milano" style="font-size:11px;padding:6px 8px;background:#FFFDE7;border:1.5px solid ${comune?'var(--brd)':'var(--red)'};border-radius:var(--rad)" oninput="saveComune(this.value)"></div>`;
-  h+=`<div style="flex:1;min-width:120px"><label style="font-size:10px;color:var(--txt2);font-weight:600;display:block;margin-bottom:2px">Alunno (se pertinente) o altra specifica utile</label><input ${lkd} value="${esc(alunno)}" placeholder="" style="font-size:11px;padding:6px 8px;background:#FFFDE7" oninput="saveAlunno(this.value)"></div>`;
+  if(!isConfigured){
+    // OPTION A: not configured -> tell to go configure it in its page, NO fields here
+    h+=`<div style="margin:20px 14px;padding:22px 20px;background:#FFF0F0;border:3px solid #DC143C;border-radius:12px;text-align:center">`;
+    h+=`<div style="font-size:40px;margin-bottom:8px">⚙️</div>`;
+    h+=`<div style="font-size:18px;font-weight:900;color:#DC143C;margin-bottom:6px">QUESTO SERVIZIO NON È ANCORA CONFIGURATO</div>`;
+    h+=`<div style="font-size:14px;color:#A32D2D;margin-bottom:16px;line-height:1.5">Prima di segnare le ore, devi <b>preparare</b> questo servizio:<br>scrivere che lavoro fai, in che sede, la via e il comune.</div>`;
+    h+=`<button style="padding:14px 26px;font-size:15px;font-weight:800;background:#DC143C;color:#fff;border:none;border-radius:10px;cursor:pointer;box-shadow:0 3px 10px rgba(220,20,60,.3)" onclick="ws.view='servizi';renderWorker()">⚙️ VAI A CONFIGURARE QUESTO SERVIZIO</button>`;
+    h+=`</div>`;
+    $("app-main").innerHTML=h;
+    _rendering=false;return;
+  }
+  // Configured: show read-only header with the service data
+  h+=`<div style="padding:10px 14px;background:${svcBg};border-bottom:1px solid var(--brd)">`;
+  h+=`<div style="font-size:15px;font-weight:800;color:#1a1a1a">${esc(mansione)}${sede?` <span style="font-weight:600">/ ${esc(sede)}</span>`:""}</div>`;
+  h+=`<div style="font-size:13px;color:#444;margin-top:2px">${esc(dettagli)}${comune?` (${esc(comune)})`:""}${alunno?` · 👤 ${esc(alunno)}`:""}</div>`;
+  h+=`<div style="font-size:11px;color:#666;margin-top:4px">Per modificare questi dati vai su <b>🏠 Home → Configura un servizio</b></div>`;
   h+=`</div>`;
-  if(!allReq){
-    const missing=[];if(!hasMansione)missing.push("mansione");if(!sede)missing.push("sede");if(!dettagli)missing.push("Via/Piazza");if(!comune)missing.push("Comune");
-    h+=`<div style="padding:20px;text-align:center;color:var(--red);font-weight:600;font-size:13px;background:#FEF6F6;border-bottom:1px solid var(--brd)">Compila i campi obbligatori per procedere: ${missing.join(", ")}</div>`;
-  } else {
+  h+=`<div style="padding:14px 14px 0">`+instrBox("Qui segni gli <b>orari</b> di ogni giorno del mese. Scrivi l'ora di <b>entrata</b> e di <b>uscita</b> (per esempio 09:00 e 13:00). Se un giorno sei assente, scegli il motivo nella colonna <b>Assenza</b>. Quando hai finito, premi il grande pulsante <b>💾 SALVA</b>. Il totale delle ore si calcola da solo.","fog")+`</div>`;
+  {
     // Check if this combination was on a different tab in the PREVIOUS month (parallel load)
     let warnMsg="";
     if(mansione&&sede){
