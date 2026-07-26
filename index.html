@@ -235,6 +235,23 @@ function fmtH(n){if(!n||n<=0)return"";const h=Math.floor(n),m=Math.round((n-h)*6
 function fmtDec(n){if(!n||n<=0)return"";const r=Math.round(n*100)/100;return r.toFixed(2).replace(".",",")}
 function calcOrd(e){let t=0;const a=parseT(e.t1f),b=parseT(e.t1t);if(a!==null&&b!==null&&b>a)t+=b-a;const c=parseT(e.t2f),d=parseT(e.t2t);if(c!==null&&d!==null&&d>c)t+=d-c;return t}
 function calcInd(e){const a=parseT(e.iF),b=parseT(e.iT);if(a!==null&&b!==null&&b>a)return b-a;return 0}
+// ===== Conteggio assenze PER GIORNATA (non per servizio): 1 giorno = 1 =====
+// tsList = tutti i timesheet (uno per servizio) dello stesso operatore+mese.
+// Regola A: se lo stesso giorno ha assenza su piu' servizi, conta 1; il tipo e' quello del primo servizio.
+function absByDay(tsList,nd){
+  const perGiorno={};
+  for(const ts of tsList){
+    if(!ts||!ts.days)continue;
+    for(let d=1;d<=nd;d++){const e=ts.days[d];if(e&&e.absence&&!perGiorno[d])perGiorno[d]=e.absence}
+  }
+  return perGiorno; // {giorno: tipo}
+}
+// Restituisce {giorni, perTipo:{...}} a partire da una mappa giorno->tipo (accumulabile su piu' mesi)
+function absStats(perGiorno){
+  const perTipo={};let giorni=0;
+  for(const d in perGiorno){giorni++;const tp=perGiorno[d];perTipo[tp]=(perTipo[tp]||0)+1}
+  return {giorni,perTipo};
+}
 function tsId(uid,y,m,si){return uid+"__"+y+"_"+m+"_"+si}
 function esc(s){if(!s)return"";return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
 // Restituisce solo il NOME per i saluti (senza cognome)
@@ -285,7 +302,7 @@ async function loadTS(uid,y,m,si){const k=tsId(uid,y,m,si);if(cache[k]!==undefin
 async function saveTS(uid,y,m,si,days,mansione,sede,dettagli,comune,alunno,wName){const k=tsId(uid,y,m,si);const p={days,mansione:mansione||"",sede:sede||"",dettagli:dettagli||"",comune:comune||"",alunno:alunno||"",workerUid:uid,workerName:wName||"",year:y,month:m,serviceIdx:si,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};cache[k]=p;try{await db.collection("timesheets").doc(k).set(p)}catch(e){console.error(e)}}
 
 // ========== WORKER VIEW ==========
-let ws={year:new Date().getFullYear(),month:new Date().getMonth()+1,si:0,view:"home",addingService:false};
+let ws={year:new Date().getFullYear(),month:new Date().getMonth()+1,si:0,view:"home",addingService:false,fuExtra:{}};
 let monthLocked=false;
 async function isMonthLocked(y,m){
   try{const d=await db.collection("locks").doc(y+"_"+m).get();return d.exists&&d.data().locked===true}catch(e){return false}
@@ -391,7 +408,26 @@ async function renderRiepilogoServizi(){
     h+=`<div style="padding:40px 20px;text-align:center;color:var(--txt2)"><div style="font-size:16px;margin-bottom:12px">Non hai ancora preparato nessun servizio.</div><div style="font-size:14px;margin-bottom:16px">Torna alla Home e premi il riquadro rosso <b>"QUI PUOI CLICCARE SE DEVI CONFIGURARE UN SERVIZIO"</b>.</div><button style="padding:12px 20px;font-size:14px;font-weight:700;background:#F0D9DC;color:#0047FF;border:2px solid #D9A7AF;border-radius:8px;cursor:pointer" onclick="ws.view='home';renderWorker()">🏠 Torna alla Home</button></div>`;
     $("app-main").innerHTML=h;return;
   }
-  h+=`<div style="padding:16px 14px">`+instrBox("Qui vedi tutti i servizi che hai già preparato. Ogni servizio è un rettangolo con un <b>colore</b> diverso: ritrovi lo stesso colore nel foglio ore, così lo riconosci subito. <b>Premi sul servizio</b> per aprire il suo foglio ore e segnare le tue ore. Per aggiungere o cambiare un servizio, torna alla <b>🏠 Home</b> e premi il riquadro rosso.","rie","rosa")+`<div style="font-size:14px;color:#0047FF;font-weight:700;margin-bottom:14px;text-align:center">👇 Premi sul servizio per aprire il suo foglio ore</div>`;
+  h+=`<div style="padding:16px 14px">`+instrBox("Qui vedi tutti i servizi che hai già preparato. Puoi segnare le tue ore in <b>due modi</b>: premi su un servizio per compilare solo il suo foglio, oppure usa il <b>foglio unico</b> per scrivere tutti i giorni del mese in una sola tabella, indicando ogni volta il servizio. Per aggiungere o cambiare un servizio, torna alla <b>🏠 Home</b> e premi il riquadro rosso.","rie","rosa");
+  // ===== Scelta del modo di compilazione =====
+  h+=`<div style="max-width:900px;margin:0 auto 18px;background:#EAF3FB;border:3px solid #0047FF;border-radius:12px;padding:14px 16px">`;
+  h+=`<div style="font-size:15px;font-weight:900;color:#0047FF;text-align:center">✍️ COME VUOI SEGNARE LE TUE ORE?</div>`;
+  h+=`<div style="font-size:13.5px;font-weight:700;color:#1F3A93;text-align:center;margin:4px 0 12px">👇 Clicca il riquadro che ti interessa</div>`;
+  h+=`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px">`;
+  h+=`<button onclick="document.getElementById('lista-servizi').scrollIntoView({behavior:'smooth'})" style="flex:1;min-width:250px;background:#fff;border:2px solid #B9D4EE;border-radius:10px;padding:14px 16px;cursor:pointer;text-align:left;font-family:Calibri,Arial,sans-serif;box-shadow:0 2px 6px rgba(0,71,255,.12)">`;
+  h+=`<div style="font-size:15px;font-weight:800;color:#0047FF;margin-bottom:5px">1️⃣ Un foglio per ogni servizio</div>`;
+  h+=`<div style="font-size:13px;color:#444;line-height:1.5">Scegli un servizio dall'elenco qui sotto e compili solo quello.</div>`;
+  h+=`<div style="margin-top:8px;font-size:13px;font-weight:800;color:#0047FF">Vai all'elenco dei servizi ›</div>`;
+  h+=`</button>`;
+  h+=`<button onclick="ws.fuExtra={};ws.view='unico';renderWorker()" style="flex:1;min-width:250px;background:#fff;border:2px solid #B9D4EE;border-radius:10px;padding:14px 16px;cursor:pointer;text-align:left;font-family:Calibri,Arial,sans-serif;box-shadow:0 2px 6px rgba(0,71,255,.12)">`;
+  h+=`<div style="font-size:15px;font-weight:800;color:#0047FF;margin-bottom:5px">2️⃣ Un foglio unico per tutti</div>`;
+  h+=`<div style="font-size:13px;color:#444;line-height:1.5">Una sola tabella con tutti i giorni: scegli il servizio riga per riga.</div>`;
+  h+=`<div style="margin-top:8px;font-size:13px;font-weight:800;color:#0047FF">Apri il foglio unico ›</div>`;
+  h+=`</button>`;
+  h+=`</div>`;
+  h+=`<div style="background:#FFF9E6;border:2px solid #FFD54F;border-radius:8px;padding:10px 14px;font-size:13.5px;color:#5A4E00;line-height:1.55"><b>🔄 Non devi scegliere una volta per sempre!</b> Puoi cambiare modo <b>ogni mese</b>, e anche <b>durante lo stesso mese</b>: le ore che scrivi in un modo le ritrovi uguali nell'altro, perché il programma memorizza comunque le tue ore, indipendentemente dalla modalità che adotti di volta in volta.</div>`;
+  h+=`</div>`;
+  h+=`<div id="lista-servizi" style="font-size:14px;color:#0047FF;font-weight:700;margin-bottom:14px;text-align:center">👇 I tuoi servizi — premi su uno per aprire il suo foglio ore</div>`;
   h+=`<div style="display:flex;flex-direction:column;gap:10px">`;
   for(let i=0;i<20;i++){
     const s=svcs[i];
@@ -616,6 +652,7 @@ async function renderWorker(){
   if(ws.view==="home"){renderHomeOperatore();return}
   if(ws.view==="servizi"){renderMieiServizi();return}
   if(ws.view==="riepilogo"){renderRiepilogoServizi();return}
+  if(ws.view==="unico"){renderFoglioUnico();return}
   if(ws.view==="light"){renderLightEditor();return}
   if(_rendering)return;_rendering=true;
   try{
@@ -698,13 +735,19 @@ async function renderWorker(){
     $("app-main").innerHTML=h;
     _rendering=false;return;
   }
-  // Configured: show read-only header with the service data
-  h+=`<div style="margin:10px 14px;padding:10px 14px;background:${svcBg};border:3px solid ${SVC_BORD[si]};border-radius:8px">`;
-  h+=`<div style="font-size:15px;font-weight:800;color:#1a1a1a">${esc(mansione.toUpperCase())}${sede?` <span style="font-weight:600">/ ${esc(sede.toUpperCase())}</span>`:""}</div>`;
+  // Configured: intestazione con BADGE grande del numero servizio (ben visibile)
+  h+=`<div style="display:flex;align-items:stretch;margin:12px 14px;border:3px solid ${SVC_BORD[si]};border-radius:12px;overflow:hidden">`;
+  h+=`<div style="background:${SVC_BORD[si]};color:#fff;padding:14px 20px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:96px">`;
+  h+=`<div style="font-size:40px;font-weight:900;line-height:1">${si+1}°</div>`;
+  h+=`<div style="font-size:11px;font-weight:700;letter-spacing:.5px;margin-top:2px">SERVIZIO</div>`;
+  h+=`</div>`;
+  h+=`<div style="background:${svcBg};padding:12px 16px;flex:1">`;
+  h+=`<div style="font-size:16px;font-weight:800;color:#1a1a1a">${esc(mansione.toUpperCase())}${sede?` <span style="font-weight:600">/ ${esc(sede.toUpperCase())}</span>`:""}</div>`;
   h+=`<div style="font-size:13px;color:#444;margin-top:2px">${esc(dettagli.toUpperCase())}${comune?` (${esc(comune.toUpperCase())})`:""}${alunno?` · 👤 ${esc(alunno.toUpperCase())}`:""}</div>`;
   h+=`<div style="font-size:11px;color:#666;margin-top:4px">Per modificare questi dati vai su <b>🏠 Home → Configura un servizio</b></div>`;
   h+=`</div>`;
-  h+=`<div style="padding:14px 14px 0">`+instrBox("Qui segni gli <b>orari</b> di ogni giorno del mese. Scrivi l'ora di <b>entrata</b> e di <b>uscita</b> (per esempio 09:00 e 13:00). Se un giorno sei assente, scegli il motivo nella colonna <b>Assenza</b>. Quando hai finito, premi il grande pulsante <b>💾 SALVA</b>. Il totale delle ore si calcola da solo.","fog")+`</div>`;
+  h+=`</div>`;
+  h+=`<div style="padding:14px 14px 0">`+instrBox("Qui segni gli <b>orari</b> di ogni giorno del mese. Scrivi l'ora di <b>entrata</b> e di <b>uscita</b> (per esempio 09:00 e 13:00). Se un giorno sei assente, scegli il motivo nella colonna <b>Assenza</b>: l'assenza vale per <b>tutta la giornata</b>, quindi la ritroverai già segnata anche sugli altri tuoi servizi. Quando hai finito, premi il pulsante <b>💾 SALVA</b>. Il totale delle ore si calcola da solo.","fog")+`</div>`;
   {
     // Check if this combination was on a different tab in the PREVIOUS month (parallel load)
     let warnMsg="";
@@ -833,6 +876,197 @@ window.toggleMot=function(d){
   if(sel){sel.disabled=!hasInd;if(!hasInd){sel.value="";uD(d,'mot','')}}
   if(cell)cell.style.opacity=hasInd?"1":".3";
 };
+// ===== FOGLIO ORE UNICO: tutti i servizi in una sola tabella =====
+// I dati restano salvati DIVISI PER SERVIZIO (stessa struttura timesheets): questa e' solo un'altra finestra sugli stessi dati.
+let fuAnags=null,fuT={};
+async function renderFoglioUnico(){
+  if(_rendering)return;_rendering=true;
+  try{
+  const uid=CU.uid,y=ws.year,m=ws.month,nd=daysIn(m,y);
+  monthLocked=await isMonthLocked(y,m);
+  const anags=await Promise.all(SVC.map((_,i)=>loadSvcAnag(uid,y,m,i)));
+  fuAnags=anags;
+  const conf=[];for(let i=0;i<20;i++)if(anags[i]&&anags[i].mansione)conf.push(i);
+  const docs=await Promise.all(SVC.map((_,i)=>loadTS(uid,y,m,i)));
+  const ronly=monthLocked?"disabled":"";
+  let h=`<div class="topbar"><div><h1>📋 Foglio ore unico</h1><div class="sub">${esc(CUD.name)}</div></div><div style="display:flex;gap:6px"><button class="btn-o btn-s" style="background:#F0D9DC;color:#0047FF;border:1px solid #E0B8BE" onclick="ws.view='riepilogo';renderWorker()">👀 Servizi configurati</button><button class="btn-o btn-s" style="background:#E8F4FD;color:#1565C0;border:1px solid #A3D0F5" onclick="ws.view='home';renderWorker()">🏠 Home</button><button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div></div>`;
+  if(!conf.length){
+    h+=`<div style="padding:40px 20px;text-align:center;color:var(--txt2)"><div style="font-size:16px;margin-bottom:12px">Non hai ancora preparato nessun servizio.</div><div style="font-size:14px;margin-bottom:16px">Torna alla Home e premi il riquadro rosso per configurarne uno.</div><button style="padding:12px 20px;font-size:14px;font-weight:700;background:#E8F4FD;color:#1565C0;border:2px solid #A3D0F5;border-radius:8px;cursor:pointer" onclick="ws.view='home';renderWorker()">🏠 Torna alla Home</button></div>`;
+    $("app-main").innerHTML=h;return;
+  }
+  // Controlli mese/anno + salva
+  h+=`<div style="padding:12px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--bg);border-bottom:1px solid var(--brd)">`;
+  h+=`<span style="font-size:13px;font-weight:700;color:#333">📅 Stai compilando:</span>`;
+  h+=`<select onchange="ws.month=+this.value;ws.fuExtra={};renderWorker()" style="font-size:18px;font-weight:800;padding:8px 12px;background:#FFFDE7;border:2px solid #E5BE01;border-radius:8px;cursor:pointer;color:#3A2E00">`;
+  MONTHS.forEach((mn,i)=>h+=`<option value="${i+1}"${i+1===m?" selected":""}>${mn}</option>`);
+  h+=`</select>`;
+  h+=`<select onchange="ws.year=+this.value;ws.fuExtra={};renderWorker()" style="font-size:18px;font-weight:800;padding:8px 12px;background:#FFFDE7;border:2px solid #E5BE01;border-radius:8px;cursor:pointer;color:#3A2E00">`;
+  for(let yy=2025;yy<=2035;yy++)h+=`<option value="${yy}"${yy===y?" selected":""}>${yy}</option>`;
+  h+=`</select>`;
+  h+=`<span style="font-size:13px;font-weight:700;color:#DC143C">👉 Controlla che sia il mese giusto!</span>`;
+  h+=`<button id="btn-save-u" style="padding:8px 16px;font-size:13px;font-weight:700;background:#1D9E75;color:#fff;border:none;border-radius:8px;cursor:pointer;margin-left:auto;${monthLocked?'display:none':''}" onclick="manualSaveU()">💾 Salva</button>`;
+  h+=`</div>`;
+  h+=`<div style="padding:6px 14px;background:#EAF3FB;border-left:8px solid #0047FF;border-bottom:2px solid #0047FF;font-size:12px;font-weight:700;color:#1a1a1a">📋 FOGLIO UNICO — scrivi qui le ore di tutti i tuoi servizi; vengono comunque salvate divise per servizio</div>`;
+  if(monthLocked)h+=`<div style="margin:10px 14px;padding:10px 14px;background:#FEF6F6;border:2px solid var(--red);border-radius:8px;font-size:13px;font-weight:700;color:#A32D2D">🔒 Questo mese è stato chiuso dall'amministratore: puoi solo consultarlo.</div>`;
+  h+=`<div style="padding:14px 14px 0">`+instrBox("Qui scrivi le ore di tutti i tuoi servizi in <b>una sola tabella</b>. Per ogni giorno scegli il <b>servizio</b> nella tendina colorata e scrivi gli orari. Se in un giorno hai lavorato su <b>più servizi</b>, premi il pulsantino <b>➕</b> accanto al giorno: si aggiunge un'altra riga. L'<b>assenza</b> vale per tutta la giornata: la trovi una volta sola per giorno. Alla fine premi il pulsante <b>💾 Salva</b>.","fun")+`</div>`;
+  // Tabella
+  h+=`<div style="padding:0 14px 14px;overflow-x:auto"><table class="tbl"><thead><tr>`;
+  h+=`<th></th><th></th><th></th><th style="min-width:150px">SERVIZIO</th><th>ENTR.1</th><th>USC.1</th><th>ENTR.2</th><th>USC.2</th><th>IND.DA</th><th>IND.A</th><th style="min-width:110px">MOTIVO IND.</th><th style="min-width:90px">ASSENZA<br><span style="font-weight:400;text-transform:none">(tutto il giorno)</span></th><th>PERM.</th><th>SP.</th><th>TOT</th>`;
+  h+=`</tr></thead><tbody>`;
+  for(let d=1;d<=nd;d++){
+    const red=isRed(y,m,d),isSat=new Date(y,m-1,d).getDay()===6;
+    // Tipo assenza del giorno (primo trovato tra i servizi)
+    let absT="";
+    for(const i of conf){const e=docs[i]&&docs[i].days?docs[i].days[d]:null;if(e&&e.absence){absT=e.absence;break}}
+    if(absT){
+      h+=`<tr class="fe"><td class="dc">${d}</td><td class="dn${red?" red":""}">${dayN(y,m,d)}</td><td></td>`;
+      h+=`<td colspan="8" style="color:#A32D2D;font-style:italic;font-size:12px;font-weight:700;text-align:center">— giornata di assenza: nessun servizio da compilare —</td>`;
+      h+=`<td><select class="sl" ${ronly} style="border:2px solid #A32D2D;font-weight:700" onchange="onAbsU(${d},this.value)">`;
+      ABS_TYPES.forEach(a=>{h+=`<option value="${esc(a)}"${a===absT?" selected":""}>${a||"—"}</option>`});
+      h+=`</select></td><td></td><td></td><td class="tc" style="color:#A32D2D">ASS</td></tr>`;
+      continue;
+    }
+    // Righe del giorno: servizi con dati + slot extra
+    const used=new Set();const rowsD=[];
+    for(const i of conf){const e=docs[i]&&docs[i].days?docs[i].days[d]:null;if(e&&entryHasData(e)){rowsD.push({si:i,e:e,slot:null});used.add(i)}}
+    let ex=(ws.fuExtra[d]||[]).filter(si=>si<0||(conf.indexOf(si)>=0&&!used.has(si)));
+    ws.fuExtra[d]=ex;
+    ex.forEach((si,idx)=>{rowsD.push({si:si,e:null,slot:idx});if(si>=0)used.add(si)});
+    if(!rowsD.length)rowsD.push({si:-1,e:null,slot:-1});
+    const nR=rowsD.length;
+    const rc=red?"fest":isSat?"we":"";
+    for(let r=0;r<nR;r++){
+      const row=rowsD[r];
+      h+=`<tr class="${rc}">`;
+      if(r===0){
+        h+=`<td class="dc" rowspan="${nR}">${d}</td><td class="dn${red?" red":""}" rowspan="${nR}">${dayN(y,m,d)}</td>`;
+        h+=`<td rowspan="${nR}">${monthLocked?"":`<button title="Aggiungi un altro servizio in questo giorno" style="width:22px;height:22px;border-radius:50%;border:1.5px solid #0047FF;background:#EAF3FB;color:#0047FF;font-weight:900;font-size:14px;cursor:pointer;line-height:1" onclick="addRowU(${d})">+</button>`}</td>`;
+      }
+      // Tendina servizio
+      const bound=row.si>=0;
+      const selStyle=bound?`background:${SVC_COLORS[row.si]};border:2px solid ${SVC_BORD[row.si]};font-weight:700`:`background:#FFFDE7;border:2px solid #E5BE01;font-weight:700`;
+      const onCh=row.slot===null?`chgSvcU(${d},${row.si},this.value)`:`setSvcU(${d},${row.slot},this.value)`;
+      h+=`<td><select class="sl" ${ronly} style="${selStyle};max-width:165px" onchange="${onCh}">`;
+      if(!bound)h+=`<option value="" selected>— scegli il servizio —</option>`;
+      for(const i of conf){
+        if(i!==row.si&&used.has(i))continue;
+        const lbl=(i+1)+"° · "+((anags[i].mansione||"").toUpperCase())+(anags[i].sede?" / "+anags[i].sede.toUpperCase():"");
+        h+=`<option value="${i}"${i===row.si?" selected":""}>${esc(lbl)}</option>`;
+      }
+      h+=`</select></td>`;
+      const e=row.e||{};
+      const dis=(!bound||monthLocked)?"disabled":"";
+      const cellBg=bound?"":"background:#F5F5F2";
+      h+=`<td><input class="ti" ${dis} value="${esc(e.t1f||"")}" oninput="uDU(${d},${row.si},'t1f',this.value)" style="${cellBg}"></td>`;
+      h+=`<td><input class="ti" ${dis} value="${esc(e.t1t||"")}" oninput="uDU(${d},${row.si},'t1t',this.value)" style="${cellBg}"></td>`;
+      h+=`<td><input class="ti" ${dis} value="${esc(e.t2f||"")}" oninput="uDU(${d},${row.si},'t2f',this.value)" style="${cellBg}"></td>`;
+      h+=`<td><input class="ti" ${dis} value="${esc(e.t2t||"")}" oninput="uDU(${d},${row.si},'t2t',this.value)" style="${cellBg}"></td>`;
+      h+=`<td class="sep"><input class="ti" ${dis} value="${esc(e.iF||"")}" oninput="uDU(${d},${row.si},'iF',this.value)" style="${cellBg}"></td>`;
+      h+=`<td><input class="ti" ${dis} value="${esc(e.iT||"")}" oninput="uDU(${d},${row.si},'iT',this.value)" style="${cellBg}"></td>`;
+      // Motivo indiretta
+      const motCur=motNorm(e.mot||"");
+      const motList=MOT_TYPES.slice();if(motCur&&motList.indexOf(motCur)<0)motList.push(motCur);
+      h+=`<td><select class="sl" ${dis} onchange="uDU(${d},${row.si},'mot',this.value)" style="${cellBg}">`;
+      motList.forEach(mt=>{h+=`<option value="${esc(mt)}"${motCur===mt?" selected":""}>${mt||"—"}</option>`});
+      h+=`</select></td>`;
+      if(r===0){
+        h+=`<td rowspan="${nR}"><select class="sl" ${ronly} onchange="onAbsU(${d},this.value)">`;
+        ABS_TYPES.forEach(a=>{h+=`<option value="${esc(a)}">${a||"—"}</option>`});
+        h+=`</select></td>`;
+      }
+      h+=`<td><input class="ti" ${dis} value="${esc(e.perm||"")}" placeholder="" oninput="uDU(${d},${row.si},'perm',this.value)" style="${cellBg}"></td>`;
+      h+=`<td><select class="sl" ${dis} onchange="uDU(${d},${row.si},'spole',this.value)" style="${cellBg}">`;
+      SPOLE.forEach(s=>{h+=`<option value="${s}"${(e.spole||"")===s?" selected":""}>${s||"—"}</option>`});
+      h+=`</select></td>`;
+      const tot=calcOrd(e)+calcInd(e);
+      h+=`<td class="tc" id="fut-${d}-${row.si}">${tot>0?fmtDec(tot):"—"}</td>`;
+      h+=`</tr>`;
+    }
+  }
+  h+=`</tbody></table></div>`;
+  h+=`<div id="fu-foot" style="margin:8px 14px 20px;padding:10px 14px;background:#E5BE01;border-radius:6px;font-weight:700;color:#3A2E00;font-size:13px"></div>`;
+  $("app-main").innerHTML=h;
+  fuFooter();
+  }finally{_rendering=false}
+}
+function fuFooter(){
+  const uid=CU.uid,y=ws.year,m=ws.month,nd=daysIn(m,y);
+  let O=0,I=0,S=0;const tsL=[];
+  for(let i=0;i<20;i++){const ts=cache[tsId(uid,y,m,i)];if(!ts||!ts.days)continue;tsL.push(ts);
+    for(let d=1;d<=nd;d++){const e=ts.days[d];if(!e||e.absence)continue;O+=calcOrd(e);I+=calcInd(e);if(e.spole)S+=parseInt(e.spole)||0}}
+  const A=absStats(absByDay(tsL,nd)).giorni;
+  const f=document.getElementById("fu-foot");
+  if(f)f.innerHTML=`TOTALE MESE: Ordinarie ${fmtDec(O)||"0,00"} + Indirette ${fmtDec(I)||"0,00"} = <span style="font-size:15px">✅ ${fmtDec(O+I)||"0,00"} ore</span> · Assenze: ${A}gg · Spole: ${S} (n. trasferte, non ore)`;
+}
+window.uDU=function(d,si,f,v){
+  if(si<0)return;
+  if(monthLocked){alert("Questo mese è stato chiuso dall'amministratore. Non è possibile modificare.");renderFoglioUnico();return}
+  const uid=CU.uid,y=ws.year,m=ws.month,k=tsId(uid,y,m,si);
+  const an=(fuAnags&&fuAnags[si])||{};
+  if(!cache[k])cache[k]={days:{},mansione:an.mansione||"",sede:an.sede||"",dettagli:an.dettagli||"",comune:an.comune||"",alunno:an.alunno||"",workerUid:uid,workerName:CUD.name,year:y,month:m,serviceIdx:si};
+  if(!cache[k].mansione&&an.mansione){cache[k].mansione=an.mansione;cache[k].sede=an.sede||"";cache[k].dettagli=an.dettagli||"";cache[k].comune=an.comune||"";cache[k].alunno=an.alunno||""}
+  if(!cache[k].days)cache[k].days={};
+  if(!cache[k].days[d])cache[k].days[d]={};
+  cache[k].days[d][f]=v;
+  const overlap=checkOverlap(cache[k].days[d]);
+  if(overlap){alert("⚠️ Sovrapposizione oraria!\n"+overlap+" si sovrappongono.\nCorreggi gli orari.");cache[k].days[d][f]="";renderFoglioUnico();return}
+  clearTimeout(fuT[si]);
+  fuT[si]=setTimeout(()=>{const c2=cache[k];saveTS(uid,y,m,si,c2.days,c2.mansione||"",c2.sede||"",c2.dettagli||"",c2.comune||"",c2.alunno||"",CUD.name)},800);
+  const e=cache[k].days[d];const tot=calcOrd(e)+calcInd(e);
+  const cell=document.getElementById("fut-"+d+"-"+si);if(cell)cell.textContent=tot>0?fmtDec(tot):"—";
+  fuFooter();
+};
+window.onAbsU=async function(d,v){
+  if(monthLocked){alert("Questo mese è stato chiuso dall'amministratore. Non è possibile modificare.");renderFoglioUnico();return}
+  for(const t in fuT)clearTimeout(fuT[t]);
+  await applyAbsGiornata(d,v);
+  renderFoglioUnico();
+};
+window.addRowU=function(d){if(!ws.fuExtra[d])ws.fuExtra[d]=[];ws.fuExtra[d].push(-1);renderFoglioUnico()};
+window.setSvcU=function(d,slot,val){
+  if(val==="")return;
+  const si=+val;
+  if(!ws.fuExtra[d])ws.fuExtra[d]=[];
+  if(slot<0)ws.fuExtra[d].push(si);else ws.fuExtra[d][slot]=si;
+  renderFoglioUnico();
+};
+window.chgSvcU=async function(d,oldSi,val){
+  if(monthLocked){alert("Questo mese è stato chiuso dall'amministratore. Non è possibile modificare.");renderFoglioUnico();return}
+  if(val===""){renderFoglioUnico();return}
+  const newSi=+val;if(newSi===oldSi)return;
+  const uid=CU.uid,y=ws.year,m=ws.month;
+  const tsN=await loadTS(uid,y,m,newSi);
+  if(tsN&&tsN.days&&entryHasData(tsN.days[d])){alert("Quel servizio ha già una riga con dati in questo giorno. Scegli un altro servizio.");renderFoglioUnico();return}
+  const kO=tsId(uid,y,m,oldSi);
+  const tsO=cache[kO];
+  const e=tsO&&tsO.days?tsO.days[d]:null;
+  if(!e){renderFoglioUnico();return}
+  const kN=tsId(uid,y,m,newSi);
+  const an=(fuAnags&&fuAnags[newSi])||{};
+  let tsNn=cache[kN];
+  if(!tsNn)tsNn={days:{},mansione:an.mansione||"",sede:an.sede||"",dettagli:an.dettagli||"",comune:an.comune||"",alunno:an.alunno||"",workerUid:uid,workerName:CUD.name,year:y,month:m,serviceIdx:newSi};
+  if(!tsNn.mansione&&an.mansione){tsNn.mansione=an.mansione;tsNn.sede=an.sede||"";tsNn.dettagli=an.dettagli||"";tsNn.comune=an.comune||"";tsNn.alunno=an.alunno||""}
+  if(!tsNn.days)tsNn.days={};
+  tsNn.days[d]=Object.assign({},e);
+  delete tsO.days[d];
+  cache[kN]=tsNn;
+  await saveTS(uid,y,m,oldSi,tsO.days,tsO.mansione||"",tsO.sede||"",tsO.dettagli||"",tsO.comune||"",tsO.alunno||"",CUD.name);
+  await saveTS(uid,y,m,newSi,tsNn.days,tsNn.mansione||"",tsNn.sede||"",tsNn.dettagli||"",tsNn.comune||"",tsNn.alunno||"",CUD.name);
+  renderFoglioUnico();
+};
+window.manualSaveU=async function(){
+  const uid=CU.uid,y=ws.year,m=ws.month;
+  const btn=document.getElementById("btn-save-u");
+  if(btn){btn.textContent="Salvataggio...";btn.disabled=true}
+  for(const t in fuT)clearTimeout(fuT[t]);
+  try{
+    for(let i=0;i<20;i++){const ts=cache[tsId(uid,y,m,i)];if(!ts||!ts.mansione)continue;
+      await saveTS(uid,y,m,i,ts.days||{},ts.mansione||"",ts.sede||"",ts.dettagli||"",ts.comune||"",ts.alunno||"",CUD.name)}
+    if(btn){btn.textContent="✓ Salvato!";btn.style.background="#145A3E";setTimeout(()=>{btn.textContent="💾 Salva";btn.style.background="#1D9E75";btn.disabled=false},1500)}
+  }catch(ex){
+    if(btn){btn.textContent="Errore!";btn.style.background="#E24B4A";setTimeout(()=>{btn.textContent="💾 Salva";btn.style.background="#1D9E75";btn.disabled=false},2000)}
+  }
+};
 function checkOverlap(e){
   const ranges=[];
   const a1=parseT(e.t1f),b1=parseT(e.t1t);if(a1!==null&&b1!==null&&b1>a1)ranges.push({from:a1,to:b1,name:"1ª tranche"});
@@ -865,20 +1099,61 @@ window.uD=function(d,f,v){
   const foot=document.querySelector('.tbl tfoot tr');
   if(foot){const fc=foot.querySelectorAll('td');if(fc.length>=6){fc[1].innerHTML='Ord: '+(fmtDec(tO)||'0,00');fc[2].innerHTML='Ind: '+(fmtDec(tI)||'0,00');fc[fc.length-1].innerHTML=fmtDec(tO+tI)||'0,00'}}
 };
-window.onAbs=function(d,v){
-  if(monthLocked){alert("Questo mese è stato chiuso dall'amministratore. Non è possibile modificare.");renderWorker();return}
-  const uid=CU.uid,y=ws.year,m=ws.month,si=ws.si,k=tsId(uid,y,m,si);
-  if(!cache[k])cache[k]={days:{},mansione:"",sede:"",dettagli:"",comune:"",alunno:"",workerUid:uid,workerName:CUD.name,year:y,month:m,serviceIdx:si};
-  if(!cache[k].days)cache[k].days={};
-  if(!cache[k].days[d])cache[k].days[d]={};
-  if(v){
-    // Assenza intera: cancella TUTTO (ore, permesso, motivazione, spole) e lascia solo absence
-    cache[k].days[d]={absence:v};
-  } else {
-    delete cache[k].days[d].absence;
+// Un'entry ha dati (ore/permessi/spole/motivi)?
+function entryHasData(e){if(!e)return false;return !!(e.t1f||e.t1t||e.t2f||e.t2t||e.iF||e.iT||e.mot||e.perm||e.spole)}
+// ===== ASSENZA = GIORNATA INTERA =====
+// Imposta (o toglie, v="") l'assenza del giorno d su TUTTI i servizi configurati del mese.
+// Regole confermate: propagazione automatica; rimozione da uno = rimozione da tutti (opzione A);
+// alert se il giorno aveva un'assenza di tipo diverso o ore gia' scritte.
+async function applyAbsGiornata(d,v){
+  const uid=CU.uid,y=ws.year,m=ws.month;
+  const anags=await Promise.all(SVC.map((_,i)=>loadSvcAnag(uid,y,m,i)));
+  const conf=[];for(let i=0;i<20;i++)if(anags[i]&&anags[i].mansione)conf.push(i);
+  if(!conf.length)return false;
+  // Fotografia del giorno sugli altri servizi
+  const withHours=[],diffType=[];
+  for(const i of conf){
+    const ts=await loadTS(uid,y,m,i);
+    const e=ts&&ts.days?ts.days[d]:null;
+    if(!e)continue;
+    if(v&&e.absence&&e.absence!==v)diffType.push(e.absence);
+    if(v&&!e.absence&&entryHasData(e))withHours.push(SVC_LABELS[i]);
   }
+  if(v&&withHours.length){
+    if(!confirm("⚠️ Attenzione: il giorno "+d+" ha già delle ore su: "+withHours.join(", ")+".\nL'assenza vale per TUTTA la giornata: quelle ore verranno cancellate.\nVuoi continuare?"))return false;
+  }
+  if(v&&diffType.length){
+    alert("⚠️ Il giorno "+d+" aveva un'assenza diversa (\""+diffType[0]+"\") su un altro servizio.\nL'assenza vale per tutta la giornata: ora sarà \""+v+"\" su tutti i servizi.");
+  }
+  // Applico a tutti i servizi configurati
+  for(const i of conf){
+    const k=tsId(uid,y,m,i);
+    let ts=await loadTS(uid,y,m,i);
+    let changed=false;
+    if(!ts){
+      if(!v)continue; // niente da togliere
+      ts={days:{},mansione:anags[i].mansione||"",sede:anags[i].sede||"",dettagli:anags[i].dettagli||"",comune:anags[i].comune||"",alunno:anags[i].alunno||"",workerUid:uid,workerName:CUD.name,year:y,month:m,serviceIdx:i};
+      changed=true;
+    }
+    if(!ts.mansione&&anags[i].mansione){ts.mansione=anags[i].mansione;ts.sede=anags[i].sede||"";ts.dettagli=anags[i].dettagli||"";ts.comune=anags[i].comune||"";ts.alunno=anags[i].alunno||"";changed=true}
+    if(!ts.days)ts.days={};
+    if(v){
+      // Assenza intera: cancella tutto e lascia solo absence
+      ts.days[d]={absence:v};changed=true;
+    } else if(ts.days[d]&&ts.days[d].absence){
+      delete ts.days[d].absence;changed=true;
+    }
+    if(changed){
+      cache[k]=ts;
+      await saveTS(uid,y,m,i,ts.days,ts.mansione||"",ts.sede||"",ts.dettagli||"",ts.comune||"",ts.alunno||"",CUD.name);
+    }
+  }
+  return true;
+}
+window.onAbs=async function(d,v){
+  if(monthLocked){alert("Questo mese è stato chiuso dall'amministratore. Non è possibile modificare.");renderWorker();return}
   clearTimeout(svTimer);clearTimeout(snTimer);
-  saveTS(uid,y,m,si,cache[k].days,cache[k].mansione||"",cache[k].sede||"",cache[k].dettagli||"",cache[k].comune||"",cache[k].alunno||"",CUD.name);
+  await applyAbsGiornata(d,v);
   renderWorker();
 };
 window.onPerm=function(d,v){
@@ -1033,8 +1308,9 @@ async function renderAdminInsieme(){
   h+=`</div>`;
   $("app-main").innerHTML=h+`<div style="padding:30px;text-align:center;color:var(--txt2)">Caricamento…</div>`;
   const docs=await fetchInsieme(periods);
-  // Raggruppo per operatore + servizio
+  // Raggruppo per operatore + servizio (ore); le assenze si contano per GIORNATA a livello di operatore
   const grp={};
+  const absOp={}; // uid -> { "anno_mese_giorno": tipo }  (assenza per giornata, 1 sola volta)
   for(const d of docs){
     const k=d.workerUid+"|"+d.serviceIdx;
     if(!grp[k])grp[k]={uid:d.workerUid,name:d.workerName||"",si:d.serviceIdx,mans:"",sede:"",dett:"",com:"",alun:"",perMese:{},O:0,I:0,A:0,P:0,Sp:0};
@@ -1046,11 +1322,23 @@ async function renderAdminInsieme(){
       const e=d.days[dd];if(!e)continue;
       if(e.spole)g.Sp+=parseInt(e.spole)||0;
       if(e.perm){const p=parseFloat(String(e.perm).replace(",","."));if(!Number.isNaN(p))g.P+=p}
-      if(e.absence)g.A++;else{mO+=calcOrd(e);mI+=calcInd(e)}
+      if(e.absence){
+        const dk=d.workerUid,gk=d.year+"_"+d.month+"_"+dd;
+        if(!absOp[dk])absOp[dk]={};
+        if(!absOp[dk][gk])absOp[dk][gk]=e.absence; // 1 giorno = 1 (primo tipo trovato)
+      } else {mO+=calcOrd(e);mI+=calcInd(e)}
     }
     g.O+=mO;g.I+=mI;
     const mk=d.year+"_"+d.month;
     g.perMese[mk]=(g.perMese[mk]||0)+mO+mI;
+  }
+  // Attribuisco i giorni-assenza dell'operatore alla sua PRIMA riga-servizio (per non contarli piu' volte)
+  for(const uid in absOp){
+    const giorni=Object.keys(absOp[uid]).length;
+    // trovo la prima riga (serviceIdx piu' basso) di questo operatore
+    let firstK=null,firstSi=99;
+    for(const k in grp){if(grp[k].uid===uid&&grp[k].si<firstSi){firstSi=grp[k].si;firstK=k}}
+    if(firstK)grp[firstK].A=giorni;
   }
   const rows=Object.keys(grp).map(k=>grp[k]).filter(g=>g.mans||g.O||g.I||g.A);
   rows.sort((a,b)=>a.name===b.name?a.si-b.si:a.name.localeCompare(b.name));
@@ -1116,7 +1404,11 @@ async function calcRange(uid,periods){
   let tO=0,tI=0,tA=0,tP=0,tS=0;
   for(const[y,m]of periods){
     const nd=daysIn(m,y);
-    for(let si=0;si<20;si++){const ts=await loadTS(uid,y,m,si);if(ts&&ts.days)for(let d=1;d<=nd;d++){const e=ts.days[d];if(!e)continue;if(e.absence)tA++;else{tO+=calcOrd(e);tI+=calcInd(e)}if(e.perm){const pv=parseFloat(String(e.perm).replace(",",".").replace("h",""));if(!isNaN(pv))tP+=pv}if(e.spole)tS+=parseInt(e.spole)||0}}
+    // Carico tutti i servizi del mese per contare le assenze per GIORNATA (1 giorno = 1)
+    const tsList=[];
+    for(let si=0;si<20;si++){const ts=await loadTS(uid,y,m,si);if(ts)tsList.push(ts);
+      if(ts&&ts.days)for(let d=1;d<=nd;d++){const e=ts.days[d];if(!e)continue;if(!e.absence){tO+=calcOrd(e);tI+=calcInd(e)}if(e.perm){const pv=parseFloat(String(e.perm).replace(",",".").replace("h",""));if(!isNaN(pv))tP+=pv}if(e.spole)tS+=parseInt(e.spole)||0}}
+    tA+=absStats(absByDay(tsList,nd)).giorni;
   }
   return{tO,tI,tA,tP,tS};
 }
@@ -1222,17 +1514,21 @@ async function renderAdminWorker(){
     // Monthly detail
     const nd=daysIn(m,y);let anyData=false;
     let gmO=0,gmI=0,gmA=0,gmP=0,gmS=0;
-    const absByType={};
+    let absByType={};
+    const tsMonth=[];
     for(let si=0;si<20;si++){
       const ts=await loadTS(uid,y,m,si);
       if(!ts||!ts.days)continue;
       let hasD=false;for(let d=1;d<=nd;d++){const e=ts.days[d];if(e&&(calcOrd(e)>0||calcInd(e)>0||e.absence||e.perm)){hasD=true;break}}
       if(!hasD)continue;anyData=true;
-      // Accumulate monthly totals across services
-      for(let d=1;d<=nd;d++){const e=ts.days[d];if(!e)continue;if(e.absence){gmA++;absByType[e.absence]=(absByType[e.absence]||0)+1}else{gmO+=calcOrd(e);gmI+=calcInd(e)}if(e.perm){const pv=parseFloat(String(e.perm).replace(",",".").replace("h",""));if(!isNaN(pv))gmP+=pv}if(e.spole)gmS+=parseInt(e.spole)||0}
+      tsMonth.push(ts);
+      // Accumulate ORE e permessi/spole per servizio (le assenze si contano a parte, per giornata)
+      for(let d=1;d<=nd;d++){const e=ts.days[d];if(!e)continue;if(!e.absence){gmO+=calcOrd(e);gmI+=calcInd(e)}if(e.perm){const pv=parseFloat(String(e.perm).replace(",",".").replace("h",""));if(!isNaN(pv))gmP+=pv}if(e.spole)gmS+=parseInt(e.spole)||0}
       h+=`<div style="padding:8px 14px"><strong>${SVC_LABELS[si]}</strong>${ts.mansione?` — <span style="color:var(--txt2)">${esc(ts.mansione)}${ts.sede?" / "+esc(ts.sede):""}${ts.dettagli?" - "+esc(ts.dettagli):""}${ts.comune?" ("+esc(ts.comune)+")":""}${ts.alunno?" ["+esc(ts.alunno)+"]":""}</span>`:""}</div>`;
       h+=buildTable(ts.days,nd,y,m,true);
     }
+    // Assenze per GIORNATA (1 giorno = 1)
+    {const st=absStats(absByDay(tsMonth,nd));gmA=st.giorni;absByType=st.perTipo;}
     if(anyData){
       h+=`<div style="margin:12px 14px;padding:14px 18px;background:#E8F5E9;border:2px solid #1D9E75;border-radius:var(--rad)">`;
       h+=`<div style="font-weight:800;font-size:17px;color:#1A6B3C;margin-bottom:8px">TOTALE MESE — ${MONTHS[m-1]} ${y} (tutti i servizi)</div>`;
@@ -1276,15 +1572,18 @@ async function renderAdminWorker(){
     h+=`</div>`;
     h+=`<div style="padding:14px"><h3 style="font-size:14px;font-weight:600;margin-bottom:8px">Riepilogo per servizio — ${perLabel}</h3>`;
     let gtO=0,gtI=0,gtA=0,gtSp=0,anySvc=false;
-    const gAbsByType={};
+    let gAbsByType={};
+    const tsAll=[];const perGiornoTot={};
     for(let si=0;si<20;si++){
       let sO=0,sI=0,sA=0,sSp=0,hasAny=false;let lastMans="",lastSede="",lastDett="",lastCom="",lastAlun="";
-      for(const pp of periods){const py=pp[0],pm=pp[1];const nd=daysIn(pm,py);const ts=await loadTS(uid,py,pm,si);if(ts){if(ts.mansione){lastMans=ts.mansione;lastSede=ts.sede||"";lastDett=ts.dettagli||"";lastCom=ts.comune||"";lastAlun=ts.alunno||""}if(ts.days)for(let d=1;d<=nd;d++){const e=ts.days[d];if(!e)continue;hasAny=true;if(e.spole)sSp+=parseInt(e.spole)||0;if(e.absence){sA++;gAbsByType[e.absence]=(gAbsByType[e.absence]||0)+1}else{sO+=calcOrd(e);sI+=calcInd(e)}}}}
-      if(!hasAny)continue;anySvc=true;gtO+=sO;gtI+=sI;gtA+=sA;gtSp+=sSp;
+      for(const pp of periods){const py=pp[0],pm=pp[1];const nd=daysIn(pm,py);const ts=await loadTS(uid,py,pm,si);if(ts){if(ts.mansione){lastMans=ts.mansione;lastSede=ts.sede||"";lastDett=ts.dettagli||"";lastCom=ts.comune||"";lastAlun=ts.alunno||""}if(ts.days)for(let d=1;d<=nd;d++){const e=ts.days[d];if(!e)continue;hasAny=true;if(e.spole)sSp+=parseInt(e.spole)||0;if(e.absence){sA++;const gk=py+"_"+pm+"_"+d;if(!perGiornoTot[gk])perGiornoTot[gk]=e.absence}else{sO+=calcOrd(e);sI+=calcInd(e)}}}}
+      if(!hasAny)continue;anySvc=true;gtO+=sO;gtI+=sI;gtSp+=sSp;
       h+=`<div style="background:${SVC_COLORS[si]};border:3px solid ${SVC_BORD[si]};border-radius:var(--rad);padding:10px 14px;margin-bottom:8px">`;
       h+=`<div style="font-weight:700;font-size:13px;margin-bottom:4px;color:#1a1a1a">${SVC_LABELS[si]} — ${esc((lastMans||"").toUpperCase())}${lastSede?" / "+esc(lastSede.toUpperCase()):""}${lastDett?" - "+esc(lastDett.toUpperCase()):""}${lastCom?" ("+esc(lastCom.toUpperCase())+")":""}${lastAlun?" ["+esc(lastAlun.toUpperCase())+"]":""}</div>`;
       h+=`<div style="display:flex;gap:16px;font-size:12px;flex-wrap:wrap"><span style="color:var(--g2)"><strong>Ord:</strong> ${fmtDec(sO)||"0,00"}</span><span style="color:var(--amb)"><strong>Ind:</strong> ${fmtDec(sI)||"0,00"}</span><span style="color:#A32D2D"><strong>Ass:</strong> ${sA}gg</span><span style="color:var(--g2)"><strong>Tot:</strong> ${fmtDec(sO+sI)||"0,00"}</span><span style="color:var(--prp)"><strong>Spole:</strong> ${sSp||0} (n. trasferte, non ore)</span></div></div>`;
     }
+    // Totale generale: assenze per GIORNATA (1 giorno = 1)
+    {const st=absStats(perGiornoTot);gtA=st.giorni;gAbsByType=st.perTipo;}
     if(anySvc){
       h+=`<div style="margin-top:12px;padding:14px 18px;background:#E8F5E9;border:2px solid #1D9E75;border-radius:var(--rad)">`;
       h+=`<div style="font-weight:800;font-size:17px;color:#1A6B3C;margin-bottom:8px">TOTALE ${perLabel.toUpperCase()} (tutti i servizi)</div>`;
@@ -1382,17 +1681,19 @@ async function buildAnnualTable(uid,periods,labels){
   let gO=0,gI=0,gA=0,gP=0,gS=0;
   for(let i=0;i<periods.length;i++){
     const[y,m]=periods[i];const nd=daysIn(m,y);let mO=0,mI=0,mA=0,mP=0,mS=0;
-    const svcRows=[];
+    const svcRows=[];const tsMese=[];
     for(let si=0;si<20;si++){
       const ts=await loadTS(uid,y,m,si);
       if(!ts||!ts.days)continue;
       let sO=0,sI=0,sA=0,sP=0,sS=0,hasD=false;
       for(let d=1;d<=nd;d++){const e=ts.days[d];if(!e)continue;hasD=true;if(e.absence)sA++;else{sO+=calcOrd(e);sI+=calcInd(e)}if(e.perm){const pv=parseFloat(String(e.perm).replace(",",".").replace("h",""));if(!isNaN(pv))sP+=pv}if(e.spole)sS+=parseInt(e.spole)||0}
       if(!hasD)continue;
-      mO+=sO;mI+=sI;mA+=sA;mP+=sP;mS+=sS;
+      tsMese.push(ts);
+      mO+=sO;mI+=sI;mP+=sP;mS+=sS;
       const lbl=ts.mansione?(ts.mansione+(ts.sede?" / "+ts.sede:"")+(ts.dettagli?" - "+ts.dettagli:"")+(ts.comune?" ("+ts.comune+")":"")+(ts.alunno?" ["+ts.alunno+"]":"")):"Serv."+SVC[si];
       svcRows.push({lbl,sO,sI,sA,sP,sS});
     }
+    mA=absStats(absByDay(tsMese,nd)).giorni; // totale mese: 1 giorno = 1
     gO+=mO;gI+=mI;gA+=mA;gP+=mP;gS+=mS;
     const hasSvc=svcRows.length>0;
     // Month total row
@@ -1591,15 +1892,18 @@ async function renderViewer(){
   const nd=daysIn(vm,vy);
   let anyData=false;
   let gmO=0,gmI=0,gmA=0,gmP=0,gmS=0;
+  const tsQ=[];
   for(let si=0;si<20;si++){
     const ts=await loadTS(wid,vy,vm,si);
     if(!ts||!ts.days)continue;
     let hasD=false;for(let d=1;d<=nd;d++){const e=ts.days[d];if(e&&(calcOrd(e)>0||calcInd(e)>0||e.absence||e.perm)){hasD=true;break}}
     if(!hasD)continue;anyData=true;
-    for(let d=1;d<=nd;d++){const e=ts.days[d];if(!e)continue;if(e.absence)gmA++;else{gmO+=calcOrd(e);gmI+=calcInd(e)}if(e.perm){const pv=parseFloat(String(e.perm).replace(",",".").replace("h",""));if(!isNaN(pv))gmP+=pv}if(e.spole)gmS+=parseInt(e.spole)||0}
+    tsQ.push(ts);
+    for(let d=1;d<=nd;d++){const e=ts.days[d];if(!e)continue;if(!e.absence){gmO+=calcOrd(e);gmI+=calcInd(e)}if(e.perm){const pv=parseFloat(String(e.perm).replace(",",".").replace("h",""));if(!isNaN(pv))gmP+=pv}if(e.spole)gmS+=parseInt(e.spole)||0}
     h+=`<div style="padding:8px 14px"><strong>${SVC_LABELS[si]}</strong>${ts.mansione?` — <span style="color:var(--txt2)">${esc(ts.mansione)}${ts.sede?" / "+esc(ts.sede):""}${ts.dettagli?" - "+esc(ts.dettagli):""}${ts.comune?" ("+esc(ts.comune)+")":""}${ts.alunno?" ["+esc(ts.alunno)+"]":""}</span>`:""}</div>`;
     h+=buildTable(ts.days,nd,vy,vm,true);
   }
+  gmA=absStats(absByDay(tsQ,nd)).giorni; // 1 giorno = 1
   if(anyData){
     h+=`<div style="margin:12px 14px;padding:12px 16px;background:#E8F5E9;border:2px solid #1D9E75;border-radius:var(--rad)">`;
     h+=`<div style="font-weight:800;font-size:14px;color:#1A6B3C;margin-bottom:6px">TOTALE MESE — ${MONTHS[vm-1]} ${vy} (tutti i servizi)</div>`;
