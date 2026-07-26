@@ -254,7 +254,7 @@ function normT(v){
   if(h>=0&&h<24&&mi>=0&&mi<60)return String(h).padStart(2,"0")+":"+String(mi).padStart(2,"0");
   return v;
 }
-function parseT(s){if(!s)return null;const p=s.replace(/[,;]/,".").replace(":",".").split(".");if(p.length<2)return null;const h=parseInt(p[0]),m=parseInt(p[1]||"0");if(isNaN(h)||isNaN(m))return null;return h+m/60}
+function parseT(s){if(!s)return null;const n=normT(String(s).trim());const p=n.replace(/[,;]/,".").replace(":",".").split(".");if(p.length<2)return null;const h=parseInt(p[0]),m=parseInt(p[1]||"0");if(isNaN(h)||isNaN(m))return null;return h+m/60}
 function fmtH(n){if(!n||n<=0)return"";const h=Math.floor(n),m=Math.round((n-h)*60);return h+":"+(m<10?"0":"")+m}
 function fmtDec(n){if(!n||n<=0)return"";const r=Math.round(n*100)/100;return r.toFixed(2).replace(".",",")}
 function calcOrd(e){let t=0;const pairs=[["t1f","t1t"],["t2f","t2t"],["t3f","t3t"],["t4f","t4t"]];for(const[f,tt]of pairs){const a=parseT(e[f]),b=parseT(e[tt]);if(a!==null&&b!==null&&b>a)t+=b-a}return t}
@@ -358,7 +358,7 @@ async function renderHomeOperatore(){
   h+=`</button>`;
   // RIGHT rectangle: antique pink, electric blue text -> access already configured
   h+=`<button onclick="ws.view='riepilogo';renderWorker()" style="flex:1;min-width:280px;background:#F0D9DC;color:#0047FF;border:none;border-radius:16px;padding:36px 26px;cursor:pointer;box-shadow:0 4px 14px rgba(0,71,255,.15);transition:transform .1s;text-align:center" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">`;
-  h+=`<div style="font-size:44px;margin-bottom:12px">👀</div>`;
+  h+=`<div style="font-size:44px;margin-bottom:12px">👍</div>`;
   h+=`<div style="font-size:19px;font-weight:900;line-height:1.35">QUI PUOI CLICCARE SE DEVI ACCEDERE A SERVIZI CHE HAI GIÀ CONFIGURATO</div>`;
   h+=`</button>`;
   h+=`</div></div>`;
@@ -370,7 +370,7 @@ async function renderMieiServizi(){
   // Un'unica query per tutti i servizi dell'operatore, poi lettura da cache (veloce)
   await preloadAllTS(uid);
   const svcs=SVC.map((_,i)=>loadSvcAnagCached(uid,y,m,i));
-  let h=`<div class="topbar"><div><h1>I miei servizi</h1><div class="sub">${esc(CUD.name)}</div></div><div style="display:flex;gap:6px"><button class="btn-o btn-s" style="background:#E8F4FD;color:#1565C0;border:1px solid #A3D0F5" onclick="ws.view='home';renderWorker()">🏠 Home</button><button class="btn-o btn-s" style="background:#F0D9DC;color:#0047FF;border:1px solid #E0B8BE" onclick="ws.view='riepilogo';renderWorker()">👀 Servizi configurati</button><button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div></div>`;
+  let h=`<div class="topbar"><div><h1>I miei servizi</h1><div class="sub">${esc(CUD.name)}</div></div><div style="display:flex;gap:6px"><button class="btn-o btn-s" style="background:#E8F4FD;color:#1565C0;border:1px solid #A3D0F5" onclick="ws.view='home';renderWorker()">🏠 Home</button><button class="btn-o btn-s" style="background:#F0D9DC;color:#0047FF;border:1px solid #E0B8BE" onclick="ws.view='riepilogo';renderWorker()">👍 Servizi configurati</button><button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div></div>`;
   h+=`<div style="margin:14px 14px 0;padding:16px 20px;background:#DC143C;border:3px solid #9E0F2C;border-radius:12px;text-align:center;box-shadow:0 3px 10px rgba(220,20,60,.25)">`;
   h+=`<div style="font-size:19px;font-weight:900;color:#fff">⚙️ CONFIGURA I TUOI SERVIZI</div>`;
   h+=`<div style="font-size:13px;color:#FFE3E8;font-weight:600;margin-top:3px">Puoi aggiungerne quando vuoi! ✨</div>`;
@@ -719,7 +719,7 @@ async function renderWorker(){
   }
   const hasMansione=!!mansione;
   const allReq=hasMansione&&!!sede&&!!dettagli&&!!comune;
-  let h=`<div class="topbar"><div><h1>Spazio Ireos</h1><div class="sub">${esc(CUD.name)}</div></div><div style="display:flex;gap:6px">${CUD.role==="editor"?`<button class="btn-o btn-s" style="background:#F3E8FD;color:#7B1FA2;border:1px solid #D1B3F0" onclick="ws.view='light';renderWorker()">🗂️ Operatori light</button>`:""}<button class="btn-o btn-s" style="background:#F0D9DC;color:#0047FF;border:1px solid #E0B8BE" onclick="ws.view='riepilogo';renderWorker()">👀 Servizi configurati</button><button class="btn-o btn-s" style="background:#E8F4FD;color:#1565C0;border:1px solid #A3D0F5" onclick="ws.view='home';renderWorker()">🏠 Home</button><button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div></div>`;
+  let h=`<div class="topbar"><div><h1>Spazio Ireos</h1><div class="sub">${esc(CUD.name)}</div></div><div style="display:flex;gap:6px">${CUD.role==="editor"?`<button class="btn-o btn-s" style="background:#F3E8FD;color:#7B1FA2;border:1px solid #D1B3F0" onclick="ws.view='light';renderWorker()">🗂️ Operatori light</button>`:""}<button class="btn-o btn-s" style="background:#F0D9DC;color:#0047FF;border:1px solid #E0B8BE" onclick="ws.view='riepilogo';renderWorker()">👍 Servizi configurati</button><button class="btn-o btn-s" style="background:#E8F4FD;color:#1565C0;border:1px solid #A3D0F5" onclick="ws.view='home';renderWorker()">🏠 Home</button><button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div></div>`;
   h+=`<div style="padding:12px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--bg);border-bottom:1px solid var(--brd)">`;
   h+=`<span style="font-size:13px;font-weight:700;color:#333">📅 Stai compilando:</span>`;
   h+=`<select onchange="ws.month=+this.value;renderWorker()" style="font-size:18px;font-weight:800;padding:8px 12px;background:#FFFDE7;border:2px solid #E5BE01;border-radius:8px;cursor:pointer;color:#3A2E00">`;
@@ -901,6 +901,36 @@ window.remFasciaInd=function(){
   if(occ.length){alert("⚠️ Non posso chiudere la 2ª ora indiretta: ci sono dati nei giorni "+occ.join(", ")+".\nCancellali prima di chiudere la colonna.");return}
   wsFasceInd=1;renderWorker();
 };
+// ===== ➕/➖ fasce nel FOGLIO UNICO (globali sul mese, su tutti i servizi) =====
+function fuFasceDirUsateMax(){
+  const uid=CU.uid,y=ws.year,m=ws.month,nd=daysIn(m,y);let mx=1;
+  for(let i=0;i<20;i++){const ts=cache[tsId(uid,y,m,i)];if(ts&&ts.days)mx=Math.max(mx,countFasceDirUsate(ts.days,nd))}
+  return mx;
+}
+function fuFasceIndUsateMax(){
+  const uid=CU.uid,y=ws.year,m=ws.month,nd=daysIn(m,y);let mx=1;
+  for(let i=0;i<20;i++){const ts=cache[tsId(uid,y,m,i)];if(ts&&ts.days)mx=Math.max(mx,countFasceIndUsate(ts.days,nd))}
+  return mx;
+}
+window.addFasciaDirU=function(){ws.fuNDir=Math.min(4,Math.max(ws.fuNDir||1,fuFasceDirUsateMax())+1);renderFoglioUnico()};
+window.remFasciaDirU=function(){
+  const uid=CU.uid,y=ws.year,m=ws.month,nd=daysIn(m,y);
+  const cur=Math.max(ws.fuNDir||1,fuFasceDirUsateMax());
+  if(cur<=1)return;
+  // La fascia da chiudere dev'essere vuota su TUTTI i servizi
+  const occ=[];
+  for(let i=0;i<20;i++){const ts=cache[tsId(uid,y,m,i)];if(ts&&ts.days){const o=fasciaDirVuota(ts.days,nd,cur);if(o.length)occ.push((i+1)+"° serv. gg "+o.join(","))}}
+  if(occ.length){alert("⚠️ Non posso chiudere la "+cur+"ª fascia diretta: ci sono ore in "+occ.join(" · ")+".\nCancellale prima.");return}
+  ws.fuNDir=cur-1;renderFoglioUnico();
+};
+window.addFasciaIndU=function(){ws.fuNInd=2;renderFoglioUnico()};
+window.remFasciaIndU=function(){
+  const uid=CU.uid,y=ws.year,m=ws.month,nd=daysIn(m,y);
+  const occ=[];
+  for(let i=0;i<20;i++){const ts=cache[tsId(uid,y,m,i)];if(ts&&ts.days){const o=fasciaIndVuota(ts.days,nd);if(o.length)occ.push((i+1)+"° serv. gg "+o.join(","))}}
+  if(occ.length){alert("⚠️ Non posso chiudere la 2ª ora indiretta: ci sono dati in "+occ.join(" · ")+".\nCancellali prima.");return}
+  ws.fuNInd=1;renderFoglioUnico();
+};
 function buildTable(days,nd,y,m,readonly,opts){
   opts=opts||{};
   const editable=!readonly;
@@ -1030,8 +1060,15 @@ async function renderFoglioUnico(){
   fuAnags=anags;
   const conf=[];for(let i=0;i<20;i++)if(anags[i]&&anags[i].mansione)conf.push(i);
   const docs=await Promise.all(SVC.map((_,i)=>loadTS(uid,y,m,i)));
+  // Fasce da mostrare nel foglio unico (Opzione 1): max tra usate in qualsiasi servizio e aperte manualmente
+  let fuUsedDir=1,fuUsedInd=1;
+  for(let i=0;i<20;i++){const dd=docs[i];if(dd&&dd.days){fuUsedDir=Math.max(fuUsedDir,countFasceDirUsate(dd.days,nd));fuUsedInd=Math.max(fuUsedInd,countFasceIndUsate(dd.days,nd))}}
+  if(ws._fuKey!==(y+"_"+m)){ws._fuKey=y+"_"+m;ws.fuNDir=fuUsedDir;ws.fuNInd=fuUsedInd}
+  const nDir=Math.max(ws.fuNDir||1,fuUsedDir),nInd=Math.max(ws.fuNInd||1,fuUsedInd);
+  const DIRF=[["t1f","t1t"],["t2f","t2t"],["t3f","t3t"],["t4f","t4t"]].slice(0,nDir);
+  const INDF=[["iF","iT","mot"],["iF2","iT2","mot2"]].slice(0,nInd);
   const ronly=monthLocked?"disabled":"";
-  let h=`<div class="topbar"><div><h1>📋 Foglio ore unico</h1><div class="sub">${esc(CUD.name)}</div></div><div style="display:flex;gap:6px"><button class="btn-o btn-s" style="background:#F0D9DC;color:#0047FF;border:1px solid #E0B8BE" onclick="ws.view='riepilogo';renderWorker()">👀 Servizi configurati</button><button class="btn-o btn-s" style="background:#E8F4FD;color:#1565C0;border:1px solid #A3D0F5" onclick="ws.view='home';renderWorker()">🏠 Home</button><button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div></div>`;
+  let h=`<div class="topbar"><div><h1>📋 Foglio ore unico</h1><div class="sub">${esc(CUD.name)}</div></div><div style="display:flex;gap:6px"><button class="btn-o btn-s" style="background:#F0D9DC;color:#0047FF;border:1px solid #E0B8BE" onclick="ws.view='riepilogo';renderWorker()">👍 Servizi configurati</button><button class="btn-o btn-s" style="background:#E8F4FD;color:#1565C0;border:1px solid #A3D0F5" onclick="ws.view='home';renderWorker()">🏠 Home</button><button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div></div>`;
   if(!conf.length){
     h+=`<div style="padding:40px 20px;text-align:center;color:var(--txt2)"><div style="font-size:16px;margin-bottom:12px">Non hai ancora preparato nessun servizio.</div><div style="font-size:14px;margin-bottom:16px">Torna alla Home e premi il riquadro rosso per configurarne uno.</div><button style="padding:12px 20px;font-size:14px;font-weight:700;background:#E8F4FD;color:#1565C0;border:2px solid #A3D0F5;border-radius:8px;cursor:pointer" onclick="ws.view='home';renderWorker()">🏠 Torna alla Home</button></div>`;
     $("app-main").innerHTML=h;return;
@@ -1050,10 +1087,30 @@ async function renderFoglioUnico(){
   h+=`</div>`;
   h+=`<div style="padding:6px 14px;background:#EAF3FB;border-left:8px solid #0047FF;border-bottom:2px solid #0047FF;font-size:12px;font-weight:700;color:#1a1a1a">📋 FOGLIO UNICO — scrivi qui le ore di tutti i tuoi servizi; vengono comunque salvate divise per servizio</div>`;
   if(monthLocked)h+=`<div style="margin:10px 14px;padding:10px 14px;background:#FEF6F6;border:2px solid var(--red);border-radius:8px;font-size:13px;font-weight:700;color:#A32D2D">🔒 Questo mese è stato chiuso dall'amministratore: puoi solo consultarlo.</div>`;
-  h+=`<div style="padding:14px 14px 0">`+instrBox("Qui scrivi le ore di tutti i tuoi servizi in <b>una sola tabella</b>. Per ogni giorno scegli il <b>servizio</b> nella tendina colorata e scrivi gli orari. <b>Non serve mettere i due punti</b>: puoi scrivere <b>900</b> per le 09:00, <b>930</b> per le 09:30, <b>1430</b> per le 14:30; il programma li sistema da solo. Se in un giorno hai lavorato su <b>più servizi</b>, premi il pulsantino <b>➕</b> accanto al giorno: si aggiunge un'altra riga. L'<b>assenza</b> vale per tutta la giornata: la trovi una volta sola per giorno. Alla fine premi il pulsante <b>💾 Salva</b>.","fun")+`</div>`;
+  h+=`<div style="padding:14px 14px 0">`+instrBox("Qui scrivi le ore di tutti i tuoi servizi in <b>una sola tabella</b>. Per ogni giorno scegli il <b>servizio</b> nella tendina colorata e scrivi gli orari. <b>Non serve mettere i due punti</b>: puoi scrivere <b>900</b> per le 09:00, <b>930</b> per le 09:30, <b>1430</b> per le 14:30; il programma li sistema da solo. Se in un giorno hai lavorato su <b>più servizi</b>, premi il pulsantino <b>➕</b> accanto al giorno: si aggiunge un'altra riga. Se spezzi la giornata in <b>più fasce</b>, usa i pulsantini <b>➕</b> sopra le colonne \"Ore dirette\" e \"Ore indirette\". L'<b>assenza</b> vale per tutta la giornata: la trovi una volta sola per giorno. Alla fine premi il pulsante <b>💾 Salva</b>.","fun")+`</div>`;
   // Tabella
   h+=`<div style="padding:0 14px 14px;overflow-x:auto"><table class="tbl"><thead><tr>`;
-  h+=`<th></th><th></th><th></th><th style="min-width:150px">SERVIZIO</th><th>ENTR.1</th><th>USC.1</th><th>ENTR.2</th><th>USC.2</th><th>IND.DA</th><th>IND.A</th><th style="min-width:110px">MOTIVO IND.</th><th style="min-width:90px">ASSENZA<br><span style="font-weight:400;text-transform:none">(tutto il giorno)</span></th><th>PERM.</th><th>SP.</th><th>TOT</th>`;
+  // Comandi ➕/➖ per le fasce (globali del foglio unico)
+  let cmdD="",cmdI="";
+  if(!monthLocked){
+    cmdD=`<span style="display:inline-flex;gap:3px;margin-left:5px">`;
+    if(nDir<4)cmdD+=`<button title="Aggiungi una fascia diretta" style="width:16px;height:16px;border-radius:50%;border:1.5px solid #2C6B34;background:#fff;color:#2C6B34;font-weight:900;font-size:10px;cursor:pointer;line-height:1;padding:0" onclick="addFasciaDirU()">+</button>`;
+    if(nDir>1)cmdD+=`<button title="Togli l'ultima fascia diretta (solo se vuota)" style="width:16px;height:16px;border-radius:50%;border:1.5px solid #999;background:#fff;color:#777;font-weight:900;font-size:10px;cursor:pointer;line-height:1;padding:0" onclick="remFasciaDirU()">−</button>`;
+    cmdD+=`</span>`;
+    cmdI=`<span style="display:inline-flex;gap:3px;margin-left:5px">`;
+    if(nInd<2)cmdI+=`<button title="Aggiungi una seconda ora indiretta" style="width:16px;height:16px;border-radius:50%;border:1.5px solid #9C5B12;background:#fff;color:#9C5B12;font-weight:900;font-size:10px;cursor:pointer;line-height:1;padding:0" onclick="addFasciaIndU()">+</button>`;
+    if(nInd>1)cmdI+=`<button title="Togli la seconda ora indiretta (solo se vuota)" style="width:16px;height:16px;border-radius:50%;border:1.5px solid #999;background:#fff;color:#777;font-weight:900;font-size:10px;cursor:pointer;line-height:1;padding:0" onclick="remFasciaIndU()">−</button>`;
+    cmdI+=`</span>`;
+  }
+  // Prima riga header: gruppi
+  h+=`<th rowspan="2"></th><th rowspan="2"></th><th rowspan="2"></th><th rowspan="2" style="min-width:150px">SERVIZIO</th>`;
+  h+=`<th colspan="${nDir*2}" class="hg">ORE DIRETTE/FRONTALI${cmdD}</th>`;
+  h+=`<th colspan="${nInd*3}" class="hi">ORE INDIRETTE${cmdI}</th>`;
+  h+=`<th rowspan="2" style="min-width:90px">ASSENZA<br><span style="font-weight:400;text-transform:none">(tutto il giorno)</span></th><th rowspan="2">PERM.</th><th rowspan="2">SP.</th><th rowspan="2">TOT</th></tr>`;
+  // Seconda riga header: sottocolonne
+  h+=`<tr>`;
+  for(let k=0;k<nDir;k++)h+=`<th class="hg">ENTR.${k+1}</th><th class="hg">USC.${k+1}</th>`;
+  for(let k=0;k<nInd;k++)h+=`<th class="hi">IND.${k+1} DA</th><th class="hi">IND.${k+1} A</th><th class="hi" style="min-width:100px">MOTIVO ${k+1}</th>`;
   h+=`</tr></thead><tbody>`;
   for(let d=1;d<=nd;d++){
     const red=isRed(y,m,d),isSat=new Date(y,m-1,d).getDay()===6;
@@ -1061,9 +1118,10 @@ async function renderFoglioUnico(){
     let absT="";
     for(const i of conf){const e=docs[i]&&docs[i].days?docs[i].days[d]:null;if(e&&e.absence){absT=e.absence;break}}
     if(absT){
+      const cspan=1+nDir*2+nInd*3; // SERVIZIO + fasce dirette + fasce indirette
       h+=`<tr class="fe"><td class="dc">${d}</td><td class="dn${red?" red":""}">${dayN(y,m,d)}</td><td></td>`;
-      h+=`<td colspan="8" style="color:#A32D2D;font-style:italic;font-size:12px;font-weight:700;text-align:center">— giornata di assenza: nessun servizio da compilare —</td>`;
-      h+=`<td><select class="sl" ${ronly} style="border:2px solid #A32D2D;font-weight:700" onchange="onAbsU(${d},this.value)">`;
+      h+=`<td colspan="${cspan}" style="color:#A32D2D;font-style:italic;font-size:12px;font-weight:700;text-align:center">— giornata di assenza: nessun servizio da compilare —</td>`;
+      h+=`<td class="sep"><select class="sl" ${ronly} style="border:2px solid #A32D2D;font-weight:700" onchange="onAbsU(${d},this.value)">`;
       ABS_TYPES.forEach(a=>{h+=`<option value="${esc(a)}"${a===absT?" selected":""}>${a||"—"}</option>`});
       h+=`</select></td><td></td><td></td><td class="tc" style="color:#A32D2D">ASS</td></tr>`;
       continue;
@@ -1092,27 +1150,33 @@ async function renderFoglioUnico(){
       if(!bound)h+=`<option value="" selected>— scegli il servizio —</option>`;
       for(const i of conf){
         if(i!==row.si&&used.has(i))continue;
-        const lbl=(i+1)+"° · "+((anags[i].mansione||"").toUpperCase())+(anags[i].sede?" / "+anags[i].sede.toUpperCase():"");
+        const sedeTxt=(anags[i].sede||"").toUpperCase();
+        const mansTxt=(anags[i].mansione||"").toUpperCase();
+        const lbl=(i+1)+"° · "+(sedeTxt||mansTxt)+(sedeTxt&&mansTxt?" ("+mansTxt+")":"");
         h+=`<option value="${i}"${i===row.si?" selected":""}>${esc(lbl)}</option>`;
       }
       h+=`</select></td>`;
       const e=row.e||{};
       const dis=(!bound||monthLocked)?"disabled":"";
       const cellBg=bound?"":"background:#F5F5F2";
-      h+=`<td><input class="ti" ${dis} value="${esc(e.t1f||"")}" oninput="uDU(${d},${row.si},'t1f',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'t1f',this.value))" style="${cellBg}"></td>`;
-      h+=`<td><input class="ti" ${dis} value="${esc(e.t1t||"")}" oninput="uDU(${d},${row.si},'t1t',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'t1t',this.value))" style="${cellBg}"></td>`;
-      h+=`<td><input class="ti" ${dis} value="${esc(e.t2f||"")}" oninput="uDU(${d},${row.si},'t2f',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'t2f',this.value))" style="${cellBg}"></td>`;
-      h+=`<td><input class="ti" ${dis} value="${esc(e.t2t||"")}" oninput="uDU(${d},${row.si},'t2t',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'t2t',this.value))" style="${cellBg}"></td>`;
-      h+=`<td class="sep"><input class="ti" ${dis} value="${esc(e.iF||"")}" oninput="uDU(${d},${row.si},'iF',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'iF',this.value))" style="${cellBg}"></td>`;
-      h+=`<td><input class="ti" ${dis} value="${esc(e.iT||"")}" oninput="uDU(${d},${row.si},'iT',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'iT',this.value))" style="${cellBg}"></td>`;
-      // Motivo indiretta
-      const motCur=motNorm(e.mot||"");
-      const motList=MOT_TYPES.slice();if(motCur&&motList.indexOf(motCur)<0)motList.push(motCur);
-      h+=`<td><select class="sl" ${dis} onchange="uDU(${d},${row.si},'mot',this.value)" style="${cellBg}">`;
-      motList.forEach(mt=>{h+=`<option value="${esc(mt)}"${motCur===mt?" selected":""}>${mt||"—"}</option>`});
-      h+=`</select></td>`;
+      // Fasce dirette dinamiche
+      for(const[cf,ct]of DIRF){
+        h+=`<td><input class="ti" ${dis} value="${esc(e[cf]||"")}" oninput="uDU(${d},${row.si},'${cf}',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'${cf}',this.value))" style="${cellBg}"></td>`;
+        h+=`<td><input class="ti" ${dis} value="${esc(e[ct]||"")}" oninput="uDU(${d},${row.si},'${ct}',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'${ct}',this.value))" style="${cellBg}"></td>`;
+      }
+      // Fasce indirette dinamiche (dalle/alle + motivo)
+      for(let ii=0;ii<INDF.length;ii++){
+        const cf=INDF[ii][0],ct=INDF[ii][1],cm=INDF[ii][2];
+        h+=`<td class="${ii===0?"sep":""}"><input class="ti" ${dis} value="${esc(e[cf]||"")}" oninput="uDU(${d},${row.si},'${cf}',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'${cf}',this.value))" style="${cellBg}"></td>`;
+        h+=`<td><input class="ti" ${dis} value="${esc(e[ct]||"")}" oninput="uDU(${d},${row.si},'${ct}',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'${ct}',this.value))" style="${cellBg}"></td>`;
+        const motCur=motNorm(e[cm]||"");
+        const motList=MOT_TYPES.slice();if(motCur&&motList.indexOf(motCur)<0)motList.push(motCur);
+        h+=`<td><select class="sl" ${dis} onchange="uDU(${d},${row.si},'${cm}',this.value)" style="${cellBg}">`;
+        motList.forEach(mt=>{h+=`<option value="${esc(mt)}"${motCur===mt?" selected":""}>${mt||"—"}</option>`});
+        h+=`</select></td>`;
+      }
       if(r===0){
-        h+=`<td rowspan="${nR}"><select class="sl" ${ronly} onchange="onAbsU(${d},this.value)">`;
+        h+=`<td rowspan="${nR}" class="sep"><select class="sl" ${ronly} onchange="onAbsU(${d},this.value)">`;
         ABS_TYPES.forEach(a=>{h+=`<option value="${esc(a)}">${a||"—"}</option>`});
         h+=`</select></td>`;
       }
@@ -1209,10 +1273,11 @@ window.manualSaveU=async function(){
     if(btn){btn.textContent="Errore!";btn.style.background="#E24B4A";setTimeout(()=>{btn.textContent="💾 Salva";btn.style.background="#1D9E75";btn.disabled=false},2000)}
   }
 };
-// Alla perdita di focus di un campo orario: converte 900->09:00 ecc., poi salva.
+// Alla perdita di focus di un campo orario: converte 900->09:00 ecc., poi salva (e ricontrolla).
 window.normBlur=function(el,cb){
   const nv=normT(el.value);
-  if(nv!==el.value){el.value=nv;if(cb)cb();}
+  if(nv!==el.value)el.value=nv;
+  if(cb)cb();
 };
 function checkOverlap(e){
   const ranges=[];
