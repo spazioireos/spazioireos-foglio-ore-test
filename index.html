@@ -257,8 +257,8 @@ function normT(v){
 function parseT(s){if(!s)return null;const p=s.replace(/[,;]/,".").replace(":",".").split(".");if(p.length<2)return null;const h=parseInt(p[0]),m=parseInt(p[1]||"0");if(isNaN(h)||isNaN(m))return null;return h+m/60}
 function fmtH(n){if(!n||n<=0)return"";const h=Math.floor(n),m=Math.round((n-h)*60);return h+":"+(m<10?"0":"")+m}
 function fmtDec(n){if(!n||n<=0)return"";const r=Math.round(n*100)/100;return r.toFixed(2).replace(".",",")}
-function calcOrd(e){let t=0;const a=parseT(e.t1f),b=parseT(e.t1t);if(a!==null&&b!==null&&b>a)t+=b-a;const c=parseT(e.t2f),d=parseT(e.t2t);if(c!==null&&d!==null&&d>c)t+=d-c;return t}
-function calcInd(e){const a=parseT(e.iF),b=parseT(e.iT);if(a!==null&&b!==null&&b>a)return b-a;return 0}
+function calcOrd(e){let t=0;const pairs=[["t1f","t1t"],["t2f","t2t"],["t3f","t3t"],["t4f","t4t"]];for(const[f,tt]of pairs){const a=parseT(e[f]),b=parseT(e[tt]);if(a!==null&&b!==null&&b>a)t+=b-a}return t}
+function calcInd(e){let t=0;const pairs=[["iF","iT"],["iF2","iT2"]];for(const[f,tt]of pairs){const a=parseT(e[f]),b=parseT(e[tt]);if(a!==null&&b!==null&&b>a)t+=b-a}return t}
 // ===== Conteggio assenze PER GIORNATA (non per servizio): 1 giorno = 1 =====
 // tsList = tutti i timesheet (uno per servizio) dello stesso operatore+mese.
 // Regola A: se lo stesso giorno ha assenza su piu' servizi, conta 1; il tipo e' quello del primo servizio.
@@ -334,6 +334,7 @@ async function isMonthLocked(y,m){
 // ========== I MIEI SERVIZI (home operatore) ==========
 async function renderHomeOperatore(){
   const isEditor=CUD.role==="editor";
+  preloadAllTS(CU.uid); // avvia il precaricamento (non blocca il rendering della home)
   let h=`<div class="topbar"><div><h1>Spazio Ireos</h1><div class="sub">${esc(CUD.name)}</div></div><div style="display:flex;gap:6px">${isEditor?`<button class="btn-o btn-s" style="background:#F3E8FD;color:#7B1FA2;border:1px solid #D1B3F0" onclick="ws.view='light';renderWorker()">🗂️ Operatori light</button>`:""}<button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div></div>`;
   h+=`<div style="padding:20px 16px"><div style="text-align:center;margin-bottom:18px">`;
   h+=`<svg width="88" height="72" viewBox="0 0 88 72" style="margin-bottom:6px">`;
@@ -366,8 +367,9 @@ async function renderHomeOperatore(){
 async function renderMieiServizi(){
   const uid=CU.uid;
   const y=new Date().getFullYear(),m=new Date().getMonth()+1;
-  // Load current month services as the "anagrafica" (con ricerca nei mesi precedenti se il mese corrente e' vuoto)
-  const svcs=await Promise.all(SVC.map((_,i)=>loadSvcAnag(uid,y,m,i)));
+  // Un'unica query per tutti i servizi dell'operatore, poi lettura da cache (veloce)
+  await preloadAllTS(uid);
+  const svcs=SVC.map((_,i)=>loadSvcAnagCached(uid,y,m,i));
   let h=`<div class="topbar"><div><h1>I miei servizi</h1><div class="sub">${esc(CUD.name)}</div></div><div style="display:flex;gap:6px"><button class="btn-o btn-s" style="background:#E8F4FD;color:#1565C0;border:1px solid #A3D0F5" onclick="ws.view='home';renderWorker()">🏠 Home</button><button class="btn-o btn-s" style="background:#F0D9DC;color:#0047FF;border:1px solid #E0B8BE" onclick="ws.view='riepilogo';renderWorker()">👀 Servizi configurati</button><button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div></div>`;
   h+=`<div style="margin:14px 14px 0;padding:16px 20px;background:#DC143C;border:3px solid #9E0F2C;border-radius:12px;text-align:center;box-shadow:0 3px 10px rgba(220,20,60,.25)">`;
   h+=`<div style="font-size:19px;font-weight:900;color:#fff">⚙️ CONFIGURA I TUOI SERVIZI</div>`;
@@ -424,7 +426,8 @@ async function renderMieiServizi(){
 async function renderRiepilogoServizi(){
   const uid=CU.uid;
   const y=new Date().getFullYear(),m=new Date().getMonth()+1;
-  const svcs=await Promise.all(SVC.map((_,i)=>loadSvcAnag(uid,y,m,i)));
+  await preloadAllTS(uid);
+  const svcs=SVC.map((_,i)=>loadSvcAnagCached(uid,y,m,i));
   let h=`<div class="topbar"><div><h1>I tuoi servizi configurati</h1><div class="sub">${esc(CUD.name)}</div></div><div style="display:flex;gap:6px"><button class="btn-o btn-s" style="background:#E8F4FD;color:#1565C0;border:1px solid #A3D0F5" onclick="ws.view='home';renderWorker()">🏠 Home</button><button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div></div>`;
   let anyConfigured=false;
   for(let i=0;i<20;i++){if(svcs[i]&&svcs[i].mansione)anyConfigured=true}
@@ -707,6 +710,13 @@ async function renderWorker(){
   const comune=ts?ts.comune||"":"";
   const alunno=ts?ts.alunno||"":"";
   const nd=daysIn(m,y);
+  // Sincronizza il numero di fasce col servizio/mese correnti (mostra almeno quelle gia' compilate)
+  const fasciaKey=si+"_"+y+"_"+m;
+  if(ws._fasciaKey!==fasciaKey){
+    ws._fasciaKey=fasciaKey;
+    wsFasceDir=Math.max(1,countFasceDirUsate(days,nd));
+    wsFasceInd=Math.max(1,countFasceIndUsate(days,nd));
+  }
   const hasMansione=!!mansione;
   const allReq=hasMansione&&!!sede&&!!dettagli&&!!comune;
   let h=`<div class="topbar"><div><h1>Spazio Ireos</h1><div class="sub">${esc(CUD.name)}</div></div><div style="display:flex;gap:6px">${CUD.role==="editor"?`<button class="btn-o btn-s" style="background:#F3E8FD;color:#7B1FA2;border:1px solid #D1B3F0" onclick="ws.view='light';renderWorker()">🗂️ Operatori light</button>`:""}<button class="btn-o btn-s" style="background:#F0D9DC;color:#0047FF;border:1px solid #E0B8BE" onclick="ws.view='riepilogo';renderWorker()">👀 Servizi configurati</button><button class="btn-o btn-s" style="background:#E8F4FD;color:#1565C0;border:1px solid #A3D0F5" onclick="ws.view='home';renderWorker()">🏠 Home</button><button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div></div>`;
@@ -771,7 +781,7 @@ async function renderWorker(){
   h+=`<div style="font-size:11px;color:#666;margin-top:4px">Per modificare questi dati vai su <b>🏠 Home → Configura un servizio</b></div>`;
   h+=`</div>`;
   h+=`</div>`;
-  h+=`<div style="padding:14px 14px 0">`+instrBox("Qui segni gli <b>orari</b> di ogni giorno del mese. Scrivi l'ora di <b>entrata</b> e di <b>uscita</b> (per esempio 09:00 e 13:00). Se un giorno sei assente, scegli il motivo nella colonna <b>Assenza</b>: l'assenza vale per <b>tutta la giornata</b>, quindi la ritroverai già segnata anche sugli altri tuoi servizi. Quando hai finito, premi il pulsante <b>💾 SALVA</b>. Il totale delle ore si calcola da solo.","fog")+`</div>`;
+  h+=`<div style="padding:14px 14px 0">`+instrBox("Qui segni gli <b>orari</b> di ogni giorno del mese. Scrivi l'ora di <b>entrata</b> e di <b>uscita</b>. <b>Non serve mettere i due punti</b>: puoi scrivere <b>900</b> per le 09:00, <b>930</b> per le 09:30, <b>1430</b> per le 14:30; il programma li sistema da solo. Se un giorno sei assente, scegli il motivo nella colonna <b>Assenza</b>: l'assenza vale per <b>tutta la giornata</b>, quindi la ritroverai già segnata anche sugli altri tuoi servizi. Quando hai finito, premi il pulsante <b>💾 SALVA</b>. Il totale delle ore si calcola da solo.","fog")+`</div>`;
   {
     // Check if this combination was on a different tab in the PREVIOUS month (parallel load)
     let warnMsg="";
@@ -795,6 +805,35 @@ async function renderWorker(){
 async function loadAllSvcLabels(uid,y,m){const n=["","","","","","","","","","","","","","","","","","","",""];for(let i=0;i<20;i++){const d=await loadTS(uid,y,m,i);if(d&&d.mansione)n[i]=d.mansione+(d.sede?" / "+d.sede:"")+(d.dettagli?" - "+d.dettagli:"")+(d.comune?" ("+d.comune+")":"")+(d.alunno?" ["+d.alunno+"]":"")}return n}
 // Carica l'anagrafica di un servizio: prima il mese corrente, altrimenti il piu' recente mese precedente.
 // Serve agli operatori gia' iscritti che non hanno ancora aperto il foglio del mese corrente.
+// Carica in UNA sola query tutti i timesheet dell'operatore e li mette in cache.
+// Evita centinaia di letture (20 servizi x 12 mesi indietro) quando si aprono le pagine dei servizi.
+let _preloadDone={};
+async function preloadAllTS(uid){
+  if(_preloadDone[uid])return;
+  try{
+    const snap=await db.collection("timesheets").where("workerUid","==",uid).get();
+    snap.forEach(doc=>{cache[doc.id]=doc.data()});
+    _preloadDone[uid]=true;
+    // Marco come "letti e vuoti" i mesi correnti/vicini dei 20 servizi non presenti,
+    // cosi' loadTS non rifara' una lettura Firebase per ogni casella vuota.
+    const now=new Date(),cy=now.getFullYear(),cm=now.getMonth()+1;
+    for(let i=0;i<20;i++){
+      for(let off=-2;off<=1;off++){
+        let yy=cy,mm=cm+off;while(mm<1){mm+=12;yy--}while(mm>12){mm-=12;yy++}
+        const k=tsId(uid,yy,mm,i);if(cache[k]===undefined)cache[k]=null;
+      }
+    }
+  }catch(e){/* in caso di errore si ripiega sulle letture singole */}
+}
+// Come loadSvcAnag ma sfrutta la cache gia' popolata da preloadAllTS (nessuna lettura extra)
+function loadSvcAnagCached(uid,y,m,i){
+  const cur=cache[tsId(uid,y,m,i)];
+  if(cur&&cur.mansione)return cur;
+  // cerco a ritroso nella cache (fino a 18 mesi), senza toccare Firebase
+  let py=y,pm=m-1;if(pm<1){pm=12;py--}
+  for(let n=0;n<18;n++){const d=cache[tsId(uid,py,pm,i)];if(d&&d.mansione)return d;pm--;if(pm<1){pm=12;py--}if(py<2025)break}
+  return cur||null;
+}
 async function loadSvcAnag(uid,y,m,i){
   const cur=await loadTS(uid,y,m,i);
   if(cur&&cur.mansione)return cur;
@@ -807,21 +846,95 @@ async function findPrevMonth(uid,y,m,si){
   return null;
 }
 
-function buildTable(days,nd,y,m,readonly){
-  let h=`<div class="tbl-wrap"><table class="tbl"><thead><tr>
-    <th rowspan="2" style="width:22px">G</th><th rowspan="2" style="width:24px"></th>
-    <th colspan="2" class="hg sep">Ore di servizio<br><span style="font-size:7px;font-weight:400;text-transform:none">1a tranche</span></th>
-    <th colspan="2" class="hg sep">Ore di servizio<br><span style="font-size:7px;font-weight:400;text-transform:none">2a tranche</span></th>
-    <th colspan="2" class="hi sep">Altre ore / Indirette</th>
-    <th rowspan="2" class="hi sep" style="width:72px">Motivazione<br><span style="font-size:7px;font-weight:400;text-transform:none">ore indirette</span></th>
-    <th rowspan="2" class="ha sep" style="width:82px">ASSENZA INTERA<br><span style="font-size:6.5px;font-weight:400">GIORNATA (FERIE, MALATTIA ETC.)</span></th>
-    <th rowspan="2" class="hp sep" style="width:56px">Permesso orario<br><span style="font-size:6.5px;font-weight:400;text-transform:none">(parte della giornata)</span></th>
-    <th rowspan="2" class="hs sep" style="width:42px">Spole<br><span style="font-size:7px;font-weight:400;text-transform:none">autoriz.</span></th>
-    <th rowspan="2" class="sep" style="width:40px">Tot</th></tr><tr>
-    <th class="hg sep" style="font-size:7.5px">dalle</th><th class="hg" style="font-size:7.5px">alle</th>
-    <th class="hg sep" style="font-size:7.5px">dalle</th><th class="hg" style="font-size:7.5px">alle</th>
-    <th class="hi sep" style="font-size:7.5px">dalle</th><th class="hi" style="font-size:7.5px">alle</th>
-  </tr></thead><tbody>`;
+// ===== FASCE MULTIPLE (dirette fino a 4, indirette fino a 2) =====
+// Le colonne extra compaiono col ➕ (per colonna) e si mostrano comunque se contengono gia' dati.
+// fuFasce/wsFasce: quante fasce sono state aperte manualmente (preferenza di visualizzazione).
+let wsFasceDir=1,wsFasceInd=1; // stato del foglio per servizio (per il servizio/mese correnti)
+// Conta quante fasce dirette hanno almeno un dato in tutto il mese
+function countFasceDirUsate(days,nd){
+  let mx=1;
+  for(let d=1;d<=nd;d++){const e=days[d];if(!e)continue;
+    if(e.t4f||e.t4t)mx=Math.max(mx,4);
+    else if(e.t3f||e.t3t)mx=Math.max(mx,3);
+    else if(e.t2f||e.t2t)mx=Math.max(mx,2);}
+  return mx;
+}
+function countFasceIndUsate(days,nd){
+  let mx=1;
+  for(let d=1;d<=nd;d++){const e=days[d];if(!e)continue;if(e.iF2||e.iT2||e.mot2)mx=Math.max(mx,2)}
+  return mx;
+}
+// Verifica se una fascia diretta (idx 2,3,4) e' vuota in tutti i giorni (per poterla chiudere col ➖)
+function fasciaDirVuota(days,nd,idx){
+  const f="t"+idx+"f",t="t"+idx+"t";const occ=[];
+  for(let d=1;d<=nd;d++){const e=days[d];if(e&&(e[f]||e[t]))occ.push(d)}
+  return occ;
+}
+function fasciaIndVuota(days,nd){
+  const occ=[];
+  for(let d=1;d<=nd;d++){const e=days[d];if(e&&(e.iF2||e.iT2||e.mot2))occ.push(d)}
+  return occ;
+}
+window.addFasciaDir=function(){
+  const uid=CU.uid,y=ws.year,m=ws.month,si=ws.si,k=tsId(uid,y,m,si);
+  const days=(cache[k]&&cache[k].days)||{};
+  const used=countFasceDirUsate(days,daysIn(m,y));
+  wsFasceDir=Math.min(4,Math.max(wsFasceDir,used)+1);
+  renderWorker();
+};
+window.remFasciaDir=function(){
+  const uid=CU.uid,y=ws.year,m=ws.month,si=ws.si,k=tsId(uid,y,m,si);
+  const days=(cache[k]&&cache[k].days)||{};const nd=daysIn(m,y);
+  const cur=Math.max(wsFasceDir,countFasceDirUsate(days,nd));
+  if(cur<=1)return;
+  const occ=fasciaDirVuota(days,nd,cur);
+  if(occ.length){alert("⚠️ Non posso chiudere la "+cur+"ª fascia diretta: ci sono ore inserite nei giorni "+occ.join(", ")+".\nCancellale prima di chiudere la colonna.");return}
+  wsFasceDir=cur-1;renderWorker();
+};
+window.addFasciaInd=function(){
+  wsFasceInd=2;renderWorker();
+};
+window.remFasciaInd=function(){
+  const uid=CU.uid,y=ws.year,m=ws.month,si=ws.si,k=tsId(uid,y,m,si);
+  const days=(cache[k]&&cache[k].days)||{};const nd=daysIn(m,y);
+  const occ=fasciaIndVuota(days,nd);
+  if(occ.length){alert("⚠️ Non posso chiudere la 2ª ora indiretta: ci sono dati nei giorni "+occ.join(", ")+".\nCancellali prima di chiudere la colonna.");return}
+  wsFasceInd=1;renderWorker();
+};
+function buildTable(days,nd,y,m,readonly,opts){
+  opts=opts||{};
+  const editable=!readonly;
+  // Numero di fasce da mostrare: max tra usate (con dati) e aperte manualmente
+  const usedDir=countFasceDirUsate(days,nd),usedInd=countFasceIndUsate(days,nd);
+  const nDir=editable?Math.max(wsFasceDir,usedDir):usedDir;
+  const nInd=editable?Math.max(wsFasceInd,usedInd):usedInd;
+  const DIR=[["t1f","t1t"],["t2f","t2t"],["t3f","t3t"],["t4f","t4t"]].slice(0,nDir);
+  const IND=[["iF","iT","mot"],["iF2","iT2","mot2"]].slice(0,nInd);
+  // Comandi ➕/➖ (solo se editabile)
+  let cmdDir="",cmdInd="";
+  if(editable){
+    cmdDir=`<span style="display:inline-flex;gap:3px;margin-left:5px;vertical-align:middle">`;
+    if(nDir<4)cmdDir+=`<button title="Aggiungi una fascia di lavoro diretto" style="width:17px;height:17px;border-radius:50%;border:1.5px solid #2C6B34;background:#fff;color:#2C6B34;font-weight:900;font-size:11px;cursor:pointer;line-height:1;padding:0" onclick="addFasciaDir()">+</button>`;
+    if(nDir>1)cmdDir+=`<button title="Togli l'ultima fascia diretta (solo se vuota)" style="width:17px;height:17px;border-radius:50%;border:1.5px solid #999;background:#fff;color:#777;font-weight:900;font-size:11px;cursor:pointer;line-height:1;padding:0" onclick="remFasciaDir()">−</button>`;
+    cmdDir+=`</span>`;
+    cmdInd=`<span style="display:inline-flex;gap:3px;margin-left:5px;vertical-align:middle">`;
+    if(nInd<2)cmdInd+=`<button title="Aggiungi una seconda ora indiretta" style="width:17px;height:17px;border-radius:50%;border:1.5px solid #9C5B12;background:#fff;color:#9C5B12;font-weight:900;font-size:11px;cursor:pointer;line-height:1;padding:0" onclick="addFasciaInd()">+</button>`;
+    if(nInd>1)cmdInd+=`<button title="Togli la seconda ora indiretta (solo se vuota)" style="width:17px;height:17px;border-radius:50%;border:1.5px solid #999;background:#fff;color:#777;font-weight:900;font-size:11px;cursor:pointer;line-height:1;padding:0" onclick="remFasciaInd()">−</button>`;
+    cmdInd+=`</span>`;
+  }
+  // ===== HEADER =====
+  let h=`<div class="tbl-wrap"><table class="tbl"><thead><tr>`;
+  h+=`<th rowspan="2" style="width:22px">G</th><th rowspan="2" style="width:24px"></th>`;
+  h+=`<th colspan="${nDir*2}" class="hg sep">Ore dirette/frontali${cmdDir}</th>`;
+  h+=`<th colspan="${nInd*2}" class="hi sep">Ore indirette${cmdInd}</th>`;
+  for(let k=0;k<nInd;k++)h+=`<th rowspan="2" class="hi sep" style="width:72px">Motivazione${nInd>1?" "+(k+1)+"ª":""}<br><span style="font-size:7px;font-weight:400;text-transform:none">ora indiretta</span></th>`;
+  h+=`<th rowspan="2" class="ha sep" style="width:82px">ASSENZA INTERA<br><span style="font-size:6.5px;font-weight:400">GIORNATA (FERIE, MALATTIA ETC.)</span></th>`;
+  h+=`<th rowspan="2" class="hp sep" style="width:56px">Permesso orario<br><span style="font-size:6.5px;font-weight:400;text-transform:none">(parte della giornata)</span></th>`;
+  h+=`<th rowspan="2" class="hs sep" style="width:42px">Spole<br><span style="font-size:7px;font-weight:400;text-transform:none">autoriz.</span></th>`;
+  h+=`<th rowspan="2" class="sep" style="width:40px">Tot</th></tr><tr>`;
+  for(let k=0;k<nDir;k++)h+=`<th class="hg sep" style="font-size:7.5px">dalle</th><th class="hg" style="font-size:7.5px">alle</th>`;
+  for(let k=0;k<nInd;k++)h+=`<th class="hi sep" style="font-size:7.5px">dalle</th><th class="hi" style="font-size:7.5px">alle</th>`;
+  h+=`</tr></thead><tbody>`;
   let totO=0,totI=0,totAbs=0,totPermH=0,totSpole=0;
   for(let d=1;d<=nd;d++){
     const e=days[d]||{};
@@ -838,25 +951,25 @@ function buildTable(days,nd,y,m,readonly){
     const ronly=readonly?"disabled":"";
     h+=`<tr class="${rc}">`;
     h+=`<td class="dc">${d}</td><td class="dn${red?" red":""}">${dayN(y,m,d)}</td>`;
-    // 1a tranche
-    h+=`<td class="sep${hasAbs?" bk":""}"><input class="ti" value="${esc(e.t1f||"")}" ${hasAbs?"disabled":ronly} placeholder="" oninput="uD(${d},'t1f',this.value)" onblur="normBlur(this,()=>uD(${d},'t1f',this.value))"></td>`;
-    h+=`<td${hasAbs?' class="bk"':""}><input class="ti" value="${esc(e.t1t||"")}" ${hasAbs?"disabled":ronly} placeholder="" oninput="uD(${d},'t1t',this.value)" onblur="normBlur(this,()=>uD(${d},'t1t',this.value))"></td>`;
-    // 2a tranche
-    h+=`<td class="sep${hasAbs?" bk":""}"><input class="ti" value="${esc(e.t2f||"")}" ${hasAbs?"disabled":ronly} placeholder="" oninput="uD(${d},'t2f',this.value)" onblur="normBlur(this,()=>uD(${d},'t2f',this.value))"></td>`;
-    h+=`<td${hasAbs?' class="bk"':""}><input class="ti" value="${esc(e.t2t||"")}" ${hasAbs?"disabled":ronly} placeholder="" oninput="uD(${d},'t2t',this.value)" onblur="normBlur(this,()=>uD(${d},'t2t',this.value))"></td>`;
-    // Indirette
-    h+=`<td class="sep${hasAbs?" bk":""}"><input class="ti" value="${esc(e.iF||"")}" ${hasAbs?"disabled":ronly} placeholder="" oninput="uD(${d},'iF',this.value);toggleMot(${d})" onblur="normBlur(this,()=>{uD(${d},'iF',this.value);toggleMot(${d})})"></td>`;
-    h+=`<td${hasAbs?' class="bk"':""}><input class="ti" value="${esc(e.iT||"")}" ${hasAbs?"disabled":ronly} placeholder="" oninput="uD(${d},'iT',this.value);toggleMot(${d})" onblur="normBlur(this,()=>{uD(${d},'iT',this.value);toggleMot(${d})})"></td>`;
-    // Motivazione (dropdown, right after indirette - only active if indirette filled)
-    const hasInd=!!(e.iF&&e.iT);
-    const motDis=hasInd?"":readonly?"disabled":"disabled";
-    h+=`<td class="sep${hasAbs?" bk":""}" id="mot-cell-${d}"${!hasInd&&!hasAbs?' style="opacity:.3"':""}><select class="sl" id="mot-${d}" ${hasAbs?"disabled":hasInd?"":ronly||"disabled"} onchange="uD(${d},'mot',this.value)"${e.mot?' style="background:var(--amb-bg);color:var(--amb);font-size:8px;font-weight:600"':""}>`;
-    const motCur=motNorm(e.mot||"");
-    const motList=MOT_TYPES.slice();
-    // Voce storica non piu' in elenco (es. una dicitura tolta): la mostro comunque, per non perdere il dato gia' scritto
-    if(motCur&&motList.indexOf(motCur)<0)motList.push(motCur);
-    motList.forEach(mt=>{const sel=motCur===mt?" selected":"";h+=`<option value="${esc(mt)}"${sel}>${mt||"—"}</option>`});
-    h+=`</select></td>`;
+    // Fasce dirette
+    for(const[cf,ct]of DIR){
+      h+=`<td class="sep${hasAbs?" bk":""}"><input class="ti" value="${esc(e[cf]||"")}" ${hasAbs?"disabled":ronly} oninput="uD(${d},'${cf}',this.value)" onblur="normBlur(this,()=>uD(${d},'${cf}',this.value))"></td>`;
+      h+=`<td${hasAbs?' class="bk"':""}><input class="ti" value="${esc(e[ct]||"")}" ${hasAbs?"disabled":ronly} oninput="uD(${d},'${ct}',this.value)" onblur="normBlur(this,()=>uD(${d},'${ct}',this.value))"></td>`;
+    }
+    // Fasce indirette
+    for(const[cf,ct,cm]of IND){
+      h+=`<td class="sep${hasAbs?" bk":""}"><input class="ti" value="${esc(e[cf]||"")}" ${hasAbs?"disabled":ronly} oninput="uD(${d},'${cf}',this.value);toggleMot(${d})" onblur="normBlur(this,()=>{uD(${d},'${cf}',this.value);toggleMot(${d})})"></td>`;
+      h+=`<td${hasAbs?' class="bk"':""}><input class="ti" value="${esc(e[ct]||"")}" ${hasAbs?"disabled":ronly} oninput="uD(${d},'${ct}',this.value);toggleMot(${d})" onblur="normBlur(this,()=>{uD(${d},'${ct}',this.value);toggleMot(${d})})"></td>`;
+    }
+    // Motivazioni (una per fascia indiretta)
+    for(const[cf,ct,cm]of IND){
+      const hasInd=!!(e[cf]&&e[ct]);
+      h+=`<td class="sep${hasAbs?" bk":""}" id="motc-${cm}-${d}"${!hasInd&&!hasAbs?' style="opacity:.3"':""}><select class="sl" id="mot-${cm}-${d}" ${hasAbs?"disabled":hasInd?"":ronly||"disabled"} onchange="uD(${d},'${cm}',this.value)"${e[cm]?' style="background:var(--amb-bg);color:var(--amb);font-size:8px;font-weight:600"':""}>`;
+      const motCur=motNorm(e[cm]||"");
+      const motList=MOT_TYPES.slice();if(motCur&&motList.indexOf(motCur)<0)motList.push(motCur);
+      motList.forEach(mt=>{const sel=motCur===mt?" selected":"";h+=`<option value="${esc(mt)}"${sel}>${mt||"—"}</option>`});
+      h+=`</select></td>`;
+    }
     // Assenza
     h+=`<td class="sep${hasPerm?" bka":""}"><select class="sl" ${hasPerm?"disabled":ronly} onchange="onAbs(${d},this.value)"${hasAbs?' style="background:var(--red-bg);color:#A32D2D;font-weight:700;font-size:8.5px"':""}>`;
     ABS_TYPES.forEach(a=>{const sel=(e.absence||"")===a?" selected":"";h+=`<option value="${esc(a)}"${sel}>${a||"—"}</option>`});
@@ -876,16 +989,17 @@ function buildTable(days,nd,y,m,readonly){
     else totCell=`<span style="color:#ccc">—</span>`;
     h+=`<td class="sep tc">${totCell}</td></tr>`;
   }
-  h+=`</tbody><tfoot><tr>
-    <td colspan="2" style="text-align:left;padding-left:4px;font-size:9px">TOTALI</td>
-    <td colspan="4" class="sep" style="color:var(--g2)">Ord: ${fmtDec(totO)||"0,00"}</td>
-    <td colspan="2" class="sep" style="color:var(--amb)">Ind: ${fmtDec(totI)||"0,00"}</td>
-    <td class="sep"></td>
-    <td class="sep" style="color:#A32D2D;font-size:8px">Ass: ${totAbs}gg</td>
-    <td class="sep" style="color:var(--perm);font-size:8px">P: ${totPermH>0?String(totPermH).replace(".",",")+"h":"—"}</td>
-    <td class="sep" style="color:var(--prp);font-size:8px">Sp: ${totSpole||"—"}</td>
-    <td class="sep" style="color:var(--g2);font-size:13px">${fmtDec(totO+totI)||"0,00"}</td>
-  </tr></tfoot></table></div>`;
+  const colOff=(nDir+nInd)*2;
+  h+=`</tbody><tfoot><tr>`;
+  h+=`<td colspan="2" style="text-align:left;padding-left:4px;font-size:9px">TOTALI</td>`;
+  h+=`<td colspan="${nDir*2}" class="sep" style="color:var(--g2)">Ord: ${fmtDec(totO)||"0,00"}</td>`;
+  h+=`<td colspan="${nInd*2}" class="sep" style="color:var(--amb)">Ind: ${fmtDec(totI)||"0,00"}</td>`;
+  h+=`<td colspan="${nInd}" class="sep"></td>`;
+  h+=`<td class="sep" style="color:#A32D2D;font-size:8px">Ass: ${totAbs}gg</td>`;
+  h+=`<td class="sep" style="color:var(--perm);font-size:8px">P: ${totPermH>0?String(totPermH).replace(".",",")+"h":"—"}</td>`;
+  h+=`<td class="sep" style="color:var(--prp);font-size:8px">Sp: ${totSpole||"—"}</td>`;
+  h+=`<td class="sep" style="color:var(--g2);font-size:13px">${fmtDec(totO+totI)||"0,00"}</td>`;
+  h+=`</tr></tfoot></table></div>`;
   return h;
 }
 
@@ -894,11 +1008,14 @@ let svTimer=null;
 window.toggleMot=function(d){
   const uid=CU.uid,y=ws.year,m=ws.month,si=ws.si,k=tsId(uid,y,m,si);
   const e=(cache[k]&&cache[k].days&&cache[k].days[d])||{};
-  const hasInd=!!(e.iF&&e.iT);
-  const sel=document.getElementById("mot-"+d);
-  const cell=document.getElementById("mot-cell-"+d);
-  if(sel){sel.disabled=!hasInd;if(!hasInd){sel.value="";uD(d,'mot','')}}
-  if(cell)cell.style.opacity=hasInd?"1":".3";
+  const pairs=[["iF","iT","mot"],["iF2","iT2","mot2"]];
+  for(const[cf,ct,cm]of pairs){
+    const hasInd=!!(e[cf]&&e[ct]);
+    const sel=document.getElementById("mot-"+cm+"-"+d);
+    const cell=document.getElementById("motc-"+cm+"-"+d);
+    if(sel){sel.disabled=!hasInd;if(!hasInd){sel.value="";uD(d,cm,'')}}
+    if(cell)cell.style.opacity=hasInd?"1":".3";
+  }
 };
 // ===== FOGLIO ORE UNICO: tutti i servizi in una sola tabella =====
 // I dati restano salvati DIVISI PER SERVIZIO (stessa struttura timesheets): questa e' solo un'altra finestra sugli stessi dati.
@@ -908,7 +1025,8 @@ async function renderFoglioUnico(){
   try{
   const uid=CU.uid,y=ws.year,m=ws.month,nd=daysIn(m,y);
   monthLocked=await isMonthLocked(y,m);
-  const anags=await Promise.all(SVC.map((_,i)=>loadSvcAnag(uid,y,m,i)));
+  await preloadAllTS(uid);
+  const anags=SVC.map((_,i)=>loadSvcAnagCached(uid,y,m,i));
   fuAnags=anags;
   const conf=[];for(let i=0;i<20;i++)if(anags[i]&&anags[i].mansione)conf.push(i);
   const docs=await Promise.all(SVC.map((_,i)=>loadTS(uid,y,m,i)));
@@ -932,7 +1050,7 @@ async function renderFoglioUnico(){
   h+=`</div>`;
   h+=`<div style="padding:6px 14px;background:#EAF3FB;border-left:8px solid #0047FF;border-bottom:2px solid #0047FF;font-size:12px;font-weight:700;color:#1a1a1a">📋 FOGLIO UNICO — scrivi qui le ore di tutti i tuoi servizi; vengono comunque salvate divise per servizio</div>`;
   if(monthLocked)h+=`<div style="margin:10px 14px;padding:10px 14px;background:#FEF6F6;border:2px solid var(--red);border-radius:8px;font-size:13px;font-weight:700;color:#A32D2D">🔒 Questo mese è stato chiuso dall'amministratore: puoi solo consultarlo.</div>`;
-  h+=`<div style="padding:14px 14px 0">`+instrBox("Qui scrivi le ore di tutti i tuoi servizi in <b>una sola tabella</b>. Per ogni giorno scegli il <b>servizio</b> nella tendina colorata e scrivi gli orari. Se in un giorno hai lavorato su <b>più servizi</b>, premi il pulsantino <b>➕</b> accanto al giorno: si aggiunge un'altra riga. L'<b>assenza</b> vale per tutta la giornata: la trovi una volta sola per giorno. Alla fine premi il pulsante <b>💾 Salva</b>.","fun")+`</div>`;
+  h+=`<div style="padding:14px 14px 0">`+instrBox("Qui scrivi le ore di tutti i tuoi servizi in <b>una sola tabella</b>. Per ogni giorno scegli il <b>servizio</b> nella tendina colorata e scrivi gli orari. <b>Non serve mettere i due punti</b>: puoi scrivere <b>900</b> per le 09:00, <b>930</b> per le 09:30, <b>1430</b> per le 14:30; il programma li sistema da solo. Se in un giorno hai lavorato su <b>più servizi</b>, premi il pulsantino <b>➕</b> accanto al giorno: si aggiunge un'altra riga. L'<b>assenza</b> vale per tutta la giornata: la trovi una volta sola per giorno. Alla fine premi il pulsante <b>💾 Salva</b>.","fun")+`</div>`;
   // Tabella
   h+=`<div style="padding:0 14px 14px;overflow-x:auto"><table class="tbl"><thead><tr>`;
   h+=`<th></th><th></th><th></th><th style="min-width:150px">SERVIZIO</th><th>ENTR.1</th><th>USC.1</th><th>ENTR.2</th><th>USC.2</th><th>IND.DA</th><th>IND.A</th><th style="min-width:110px">MOTIVO IND.</th><th style="min-width:90px">ASSENZA<br><span style="font-weight:400;text-transform:none">(tutto il giorno)</span></th><th>PERM.</th><th>SP.</th><th>TOT</th>`;
@@ -1098,9 +1216,10 @@ window.normBlur=function(el,cb){
 };
 function checkOverlap(e){
   const ranges=[];
-  const a1=parseT(e.t1f),b1=parseT(e.t1t);if(a1!==null&&b1!==null&&b1>a1)ranges.push({from:a1,to:b1,name:"1ª tranche"});
-  const a2=parseT(e.t2f),b2=parseT(e.t2t);if(a2!==null&&b2!==null&&b2>a2)ranges.push({from:a2,to:b2,name:"2ª tranche"});
-  const a3=parseT(e.iF),b3=parseT(e.iT);if(a3!==null&&b3!==null&&b3>a3)ranges.push({from:a3,to:b3,name:"Ore indirette"});
+  const dir=[["t1f","t1t","1ª fascia diretta"],["t2f","t2t","2ª fascia diretta"],["t3f","t3t","3ª fascia diretta"],["t4f","t4t","4ª fascia diretta"]];
+  for(const[f,tt,nm]of dir){const a=parseT(e[f]),b=parseT(e[tt]);if(a!==null&&b!==null&&b>a)ranges.push({from:a,to:b,name:nm})}
+  const ind=[["iF","iT","1ª ora indiretta"],["iF2","iT2","2ª ora indiretta"]];
+  for(const[f,tt,nm]of ind){const a=parseT(e[f]),b=parseT(e[tt]);if(a!==null&&b!==null&&b>a)ranges.push({from:a,to:b,name:nm})}
   for(let i=0;i<ranges.length;i++)for(let j=i+1;j<ranges.length;j++){
     if(ranges[i].from<ranges[j].to&&ranges[j].from<ranges[i].to)return ranges[i].name+" e "+ranges[j].name;
   }
@@ -2296,22 +2415,22 @@ window.exportExcel=async function(){
 
             const svcLabel=(ts.mansione||"Serv."+SVC[si])+(ts.sede?" / "+ts.sede:"")+(ts.dettagli?" - "+ts.dettagli:"")+(ts.comune?" ("+ts.comune+")":"")+(ts.alunno?" ["+ts.alunno+"]":"");
             rows.push(["  "+SVC_LABELS[si]+" — "+svcLabel]);
-            rows.push(["G","Giorno","1a dalle","1a alle","2a dalle","2a alle","Ind. dalle","Ind. alle","Motivazione","Assenza","Permesso","Spole","Tot"]);
+            rows.push(["G","Giorno","1a dalle","1a alle","2a dalle","2a alle","3a dalle","3a alle","4a dalle","4a alle","Ind.1 dalle","Ind.1 alle","Motivazione 1","Ind.2 dalle","Ind.2 alle","Motivazione 2","Assenza","Permesso","Spole","Tot"]);
 
             let tO=0,tI=0,tA=0,tP=0,tS=0;
             const DOW=["Dom","Lun","Mar","Mer","Gio","Ven","Sab"];
             for(let d=1;d<=nd;d++){
               const e=ts.days[d];
               const dow=DOW[new Date(y,m-1,d).getDay()];
-              if(!e){rows.push([d,dow,"","","","","","","","","","",""]);continue}
+              if(!e){rows.push([d,dow,"","","","","","","","","","","","","","","","","",""]);continue}
               const ord=calcOrd(e);const ind=calcInd(e);
               const tot=e.absence?0:ord+ind;
               if(e.absence)tA++;else{tO+=ord;tI+=ind}
               if(e.perm){const pv=parseFloat(String(e.perm).replace(",",".").replace("h",""));if(!isNaN(pv))tP+=pv}
               if(e.spole)tS+=parseInt(e.spole)||0;
-              rows.push([d,dow,e.t1f||"",e.t1t||"",e.t2f||"",e.t2t||"",e.iF||"",e.iT||"",motNorm(e.mot||""),e.absence||"",e.perm||"",e.spole||"",tot>0?Math.round(tot*100)/100:""]);
+              rows.push([d,dow,e.t1f||"",e.t1t||"",e.t2f||"",e.t2t||"",e.t3f||"",e.t3t||"",e.t4f||"",e.t4t||"",e.iF||"",e.iT||"",motNorm(e.mot||""),e.iF2||"",e.iT2||"",motNorm(e.mot2||""),e.absence||"",e.perm||"",e.spole||"",tot>0?Math.round(tot*100)/100:""]);
             }
-            rows.push(["","TOTALI","","","","","","","",tA>0?tA+"gg":"",tP>0?String(tP).replace(".",",")+"h":"",tS||"",Math.round((tO+tI)*100)/100]);
+            rows.push(["","TOTALI","","","","","","","","","","","","","","",tA>0?tA+"gg":"",tP>0?String(tP).replace(".",",")+"h":"",tS||"",Math.round((tO+tI)*100)/100]);
             rows.push([]);
           }
         }
