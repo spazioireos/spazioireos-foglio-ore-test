@@ -230,6 +230,30 @@ function isHoliday(y,m,d){for(const[hd,hm]of FIXED_HOLIDAYS)if(hd===d&&hm===m)re
 function isRed(y,m,d){return new Date(y,m-1,d).getDay()===0||isHoliday(y,m,d)}
 function daysIn(m,y){return new Date(y,m,0).getDate()}
 function dayN(y,m,d){return DN[new Date(y,m-1,d).getDay()]}
+// Normalizza un orario scritto liberamente (900, 930, 14.30, 9, 14h30...) nel formato HH:MM.
+// Se non e' interpretabile come orario valido, lascia il testo invariato.
+function normT(v){
+  if(!v)return v;
+  let s=String(v).trim();
+  if(!s)return s;
+  s=s.replace(/[.,;hH]/g,":");
+  if(s.indexOf(":")>=0){
+    const p=s.split(":");
+    if(p.length===2){
+      const h=parseInt(p[0],10),mi=p[1]===""?0:parseInt(p[1],10);
+      if(!Number.isNaN(h)&&!Number.isNaN(mi)&&h>=0&&h<24&&mi>=0&&mi<60)return String(h).padStart(2,"0")+":"+String(mi).padStart(2,"0");
+    }
+    return v;
+  }
+  if(!/^\d+$/.test(s))return v;
+  let h,mi;
+  if(s.length<=2){h=parseInt(s,10);mi=0}
+  else if(s.length===3){h=parseInt(s.substring(0,1),10);mi=parseInt(s.substring(1),10)}
+  else if(s.length===4){h=parseInt(s.substring(0,2),10);mi=parseInt(s.substring(2),10)}
+  else return v;
+  if(h>=0&&h<24&&mi>=0&&mi<60)return String(h).padStart(2,"0")+":"+String(mi).padStart(2,"0");
+  return v;
+}
 function parseT(s){if(!s)return null;const p=s.replace(/[,;]/,".").replace(":",".").split(".");if(p.length<2)return null;const h=parseInt(p[0]),m=parseInt(p[1]||"0");if(isNaN(h)||isNaN(m))return null;return h+m/60}
 function fmtH(n){if(!n||n<=0)return"";const h=Math.floor(n),m=Math.round((n-h)*60);return h+":"+(m<10?"0":"")+m}
 function fmtDec(n){if(!n||n<=0)return"";const r=Math.round(n*100)/100;return r.toFixed(2).replace(".",",")}
@@ -815,14 +839,14 @@ function buildTable(days,nd,y,m,readonly){
     h+=`<tr class="${rc}">`;
     h+=`<td class="dc">${d}</td><td class="dn${red?" red":""}">${dayN(y,m,d)}</td>`;
     // 1a tranche
-    h+=`<td class="sep${hasAbs?" bk":""}"><input class="ti" value="${esc(e.t1f||"")}" ${hasAbs?"disabled":ronly} placeholder="" oninput="uD(${d},'t1f',this.value)"></td>`;
-    h+=`<td${hasAbs?' class="bk"':""}><input class="ti" value="${esc(e.t1t||"")}" ${hasAbs?"disabled":ronly} placeholder="" oninput="uD(${d},'t1t',this.value)"></td>`;
+    h+=`<td class="sep${hasAbs?" bk":""}"><input class="ti" value="${esc(e.t1f||"")}" ${hasAbs?"disabled":ronly} placeholder="" oninput="uD(${d},'t1f',this.value)" onblur="normBlur(this,()=>uD(${d},'t1f',this.value))"></td>`;
+    h+=`<td${hasAbs?' class="bk"':""}><input class="ti" value="${esc(e.t1t||"")}" ${hasAbs?"disabled":ronly} placeholder="" oninput="uD(${d},'t1t',this.value)" onblur="normBlur(this,()=>uD(${d},'t1t',this.value))"></td>`;
     // 2a tranche
-    h+=`<td class="sep${hasAbs?" bk":""}"><input class="ti" value="${esc(e.t2f||"")}" ${hasAbs?"disabled":ronly} placeholder="" oninput="uD(${d},'t2f',this.value)"></td>`;
-    h+=`<td${hasAbs?' class="bk"':""}><input class="ti" value="${esc(e.t2t||"")}" ${hasAbs?"disabled":ronly} placeholder="" oninput="uD(${d},'t2t',this.value)"></td>`;
+    h+=`<td class="sep${hasAbs?" bk":""}"><input class="ti" value="${esc(e.t2f||"")}" ${hasAbs?"disabled":ronly} placeholder="" oninput="uD(${d},'t2f',this.value)" onblur="normBlur(this,()=>uD(${d},'t2f',this.value))"></td>`;
+    h+=`<td${hasAbs?' class="bk"':""}><input class="ti" value="${esc(e.t2t||"")}" ${hasAbs?"disabled":ronly} placeholder="" oninput="uD(${d},'t2t',this.value)" onblur="normBlur(this,()=>uD(${d},'t2t',this.value))"></td>`;
     // Indirette
-    h+=`<td class="sep${hasAbs?" bk":""}"><input class="ti" value="${esc(e.iF||"")}" ${hasAbs?"disabled":ronly} placeholder="" oninput="uD(${d},'iF',this.value);toggleMot(${d})"></td>`;
-    h+=`<td${hasAbs?' class="bk"':""}><input class="ti" value="${esc(e.iT||"")}" ${hasAbs?"disabled":ronly} placeholder="" oninput="uD(${d},'iT',this.value);toggleMot(${d})"></td>`;
+    h+=`<td class="sep${hasAbs?" bk":""}"><input class="ti" value="${esc(e.iF||"")}" ${hasAbs?"disabled":ronly} placeholder="" oninput="uD(${d},'iF',this.value);toggleMot(${d})" onblur="normBlur(this,()=>{uD(${d},'iF',this.value);toggleMot(${d})})"></td>`;
+    h+=`<td${hasAbs?' class="bk"':""}><input class="ti" value="${esc(e.iT||"")}" ${hasAbs?"disabled":ronly} placeholder="" oninput="uD(${d},'iT',this.value);toggleMot(${d})" onblur="normBlur(this,()=>{uD(${d},'iT',this.value);toggleMot(${d})})"></td>`;
     // Motivazione (dropdown, right after indirette - only active if indirette filled)
     const hasInd=!!(e.iF&&e.iT);
     const motDis=hasInd?"":readonly?"disabled":"disabled";
@@ -957,12 +981,12 @@ async function renderFoglioUnico(){
       const e=row.e||{};
       const dis=(!bound||monthLocked)?"disabled":"";
       const cellBg=bound?"":"background:#F5F5F2";
-      h+=`<td><input class="ti" ${dis} value="${esc(e.t1f||"")}" oninput="uDU(${d},${row.si},'t1f',this.value)" style="${cellBg}"></td>`;
-      h+=`<td><input class="ti" ${dis} value="${esc(e.t1t||"")}" oninput="uDU(${d},${row.si},'t1t',this.value)" style="${cellBg}"></td>`;
-      h+=`<td><input class="ti" ${dis} value="${esc(e.t2f||"")}" oninput="uDU(${d},${row.si},'t2f',this.value)" style="${cellBg}"></td>`;
-      h+=`<td><input class="ti" ${dis} value="${esc(e.t2t||"")}" oninput="uDU(${d},${row.si},'t2t',this.value)" style="${cellBg}"></td>`;
-      h+=`<td class="sep"><input class="ti" ${dis} value="${esc(e.iF||"")}" oninput="uDU(${d},${row.si},'iF',this.value)" style="${cellBg}"></td>`;
-      h+=`<td><input class="ti" ${dis} value="${esc(e.iT||"")}" oninput="uDU(${d},${row.si},'iT',this.value)" style="${cellBg}"></td>`;
+      h+=`<td><input class="ti" ${dis} value="${esc(e.t1f||"")}" oninput="uDU(${d},${row.si},'t1f',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'t1f',this.value))" style="${cellBg}"></td>`;
+      h+=`<td><input class="ti" ${dis} value="${esc(e.t1t||"")}" oninput="uDU(${d},${row.si},'t1t',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'t1t',this.value))" style="${cellBg}"></td>`;
+      h+=`<td><input class="ti" ${dis} value="${esc(e.t2f||"")}" oninput="uDU(${d},${row.si},'t2f',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'t2f',this.value))" style="${cellBg}"></td>`;
+      h+=`<td><input class="ti" ${dis} value="${esc(e.t2t||"")}" oninput="uDU(${d},${row.si},'t2t',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'t2t',this.value))" style="${cellBg}"></td>`;
+      h+=`<td class="sep"><input class="ti" ${dis} value="${esc(e.iF||"")}" oninput="uDU(${d},${row.si},'iF',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'iF',this.value))" style="${cellBg}"></td>`;
+      h+=`<td><input class="ti" ${dis} value="${esc(e.iT||"")}" oninput="uDU(${d},${row.si},'iT',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'iT',this.value))" style="${cellBg}"></td>`;
       // Motivo indiretta
       const motCur=motNorm(e.mot||"");
       const motList=MOT_TYPES.slice();if(motCur&&motList.indexOf(motCur)<0)motList.push(motCur);
@@ -1066,6 +1090,11 @@ window.manualSaveU=async function(){
   }catch(ex){
     if(btn){btn.textContent="Errore!";btn.style.background="#E24B4A";setTimeout(()=>{btn.textContent="💾 Salva";btn.style.background="#1D9E75";btn.disabled=false},2000)}
   }
+};
+// Alla perdita di focus di un campo orario: converte 900->09:00 ecc., poi salva.
+window.normBlur=function(el,cb){
+  const nv=normT(el.value);
+  if(nv!==el.value){el.value=nv;if(cb)cb();}
 };
 function checkOverlap(e){
   const ranges=[];
