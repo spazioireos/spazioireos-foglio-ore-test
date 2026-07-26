@@ -197,11 +197,20 @@ db.enablePersistence().catch(()=>{});
 const MONTHS=["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
 const SVC=["A","B","C","D","E","F","G","H","I","L","M","N","O","P","Q","R","S","T","U","V"];
 const SVC_LABELS=["1° servizio","2° servizio","3° servizio","4° servizio","5° servizio","6° servizio","7° servizio","8° servizio","9° servizio","10° servizio","11° servizio","12° servizio","13° servizio","14° servizio","15° servizio","16° servizio","17° servizio","18° servizio","19° servizio","20° servizio"];
-const SVC_COLORS=["#E8F4FD","#E8F5E9","#FFF8E1","#FDE8E8","#F3E8FD","#E0F7FA","#FCE4EC","#F1F8E9","#FFF3E0","#EDE7F6","#E1F5FE","#F9FBE7","#FBE9E7","#E8EAF6","#F3E5F5","#E0F2F1","#FFFDE7","#EFEBE9","#E3F2FD","#FFEBEE"];
+// Colori RAL dei servizi: ciclo di 5 che si ripete fino al 20° servizio.
+// Ordine: RAL 2003 arancio pastello, RAL 6018 verde giallo, RAL 4008 violetto segnale, RAL 3017 rose', RAL 1006 giallo mais.
+const RAL_PURI=["#FA842B","#57A639","#924E7D","#D53032","#E1A100"];      // cornici (colore pieno)
+const RAL_CHIARI=["#FEEDDF","#E6F2E1","#EFE4EC","#F9E0E0","#FBF1D9"];    // sfondi (schiariti, testo nero sempre leggibile)
+const SVC_COLORS=Array.from({length:20},(_,i)=>RAL_CHIARI[i%5]);
+const SVC_BORD=Array.from({length:20},(_,i)=>RAL_PURI[i%5]);
 const ABS_TYPES=["","FERIE","MALATTIA","MALATTIA FIGLIO","PERM. ELETTORALE","PERM. LUTTO","ALTRO AUTORIZ."];
 const PERM_HOURS=["","1h","1,5h","2h","2,5h","3h","3,5h","4h","4,5h","5h","5,5h"];
 const SPOLE=["","1","2","3","4","5"];
-const MOT_TYPES=["","Preparazione materiali","Raccordo con coordinatore","Raccordo con genitore/i","Raccordo con insegnante/i","Raccordo con tiflologo","Redazione documenti","Riunione esterna","Altro"];
+const MOT_TYPES=["","Formazione","Preparazione materiali","Raccordo con coordinatore/equipe","Raccordo con genitore/i","Raccordo con insegnante/i","Raccordo con Servizi specialistici","Redazione documenti/report/relazioni","Riunione esterna","Supervisione con esperti","Visita medica","Altro"];
+// Voci rinominate nel tempo: converte il testo salvato in passato nella dicitura attuale.
+// Serve agli operatori che avevano gia' compilato con le vecchie diciture.
+const MOT_MIGRA={"Raccordo con coordinatore":"Raccordo con coordinatore/equipe","Redazione documenti":"Redazione documenti/report/relazioni"};
+function motNorm(v){const s=v||"";return MOT_MIGRA[s]||s}
 const COMMON_NAMES=["MARIO","GIUSEPPE","ANTONIO","GIOVANNI","FRANCESCO","LUIGI","ANGELO","VINCENZO","PIETRO","SALVATORE","CARLO","FRANCO","DOMENICO","BRUNO","PAOLO","MICHELE","GIORGIO","ALDO","SERGIO","LUCIANO","MARCO","ANDREA","STEFANO","ROBERTO","ALESSANDRO","MASSIMO","LUCA","FABIO","ENRICO","DAVIDE","SIMONE","MATTEO","LORENZO","ALBERTO","FEDERICO","GABRIELE","EMANUELE","RICCARDO","DANIELE","CLAUDIO","MAURIZIO","MASSIMILIANO","NICOLA","GIANLUCA","CRISTIAN","CHRISTIAN","MANUEL","MIRKO","GIACOMO","TOMMASO","EDOARDO","LEONARDO","MARIA","ANNA","GIUSEPPINA","ROSA","ANGELA","GIOVANNA","TERESA","LUCIA","CARMELA","CATERINA","FRANCESCA","ANTONIETTA","ELENA","CONCETTA","GRAZIA","CARLA","RITA","PAOLA","GIULIANA","LAURA","MARGHERITA","SILVIA","SANDRA","LOREDANA","PATRIZIA","VALENTINA","GIULIA","SARA","MARTINA","CHIARA","FEDERICA","ALESSIA","ELISA","VERONICA","ILARIA","ROBERTA","STEFANIA","MONICA","BARBARA","SIMONA","DANIELA","CRISTINA","CLAUDIA","GIORGIA","ALICE","BEATRICE","AURORA","SOFIA","GRETA","EMMA","NICOLE","GAIA","ANTONELLA","MICHELA","ELEONORA","SERENA","ARIANNA","VITTORIA","REBECCA","LETIZIA","ADELE","BIANCA","MATILDE","LUDOVICA","VIOLA","NOEMI","ASIA","GINEVRA","GIADA","CAMILLA"];
 // Light operators: 13 columns (June split into inv/est)
 const LIGHT_MONTHS=["Gen","Feb","Mar","Apr","Mag","Giu inv","Giu est","Lug","Ago","Set","Ott","Nov","Dic"];
@@ -238,12 +247,16 @@ function soloNome(){
 }
 // Box istruzioni elementari, richiudibile (aperto di default), per singola pagina
 let instrOpen={};
-function instrBox(testo,key){
+function instrBox(testo,key,tema){
   const k=key||"def";
   const aperto=instrOpen[k]!==false;
-  let s=`<div style="max-width:900px;margin:0 auto 16px;background:#FFF9E6;border:2px solid #FFD54F;border-radius:12px;overflow:hidden">`;
-  s+=`<div onclick="instrOpen['${k}']=${aperto?"false":"true"};(CUD.role==='admin'?renderAdmin:CUD.role==='viewer'?renderViewer:renderWorker)()" style="padding:10px 16px;background:#FFF3CD;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:800;color:#7B6A00;font-size:14px"><span>💡 Come funziona questa pagina?</span><span style="font-size:18px">${aperto?"▲":"▼"}</span></div>`;
-  if(aperto)s+=`<div style="padding:14px 18px;font-size:14px;line-height:1.6;color:#5A4E00">${testo}</div>`;
+  // Temi: "crimson" (configurazione servizi), "rosa" (servizi già configurati), default giallo
+  let bgBox="#FFF9E6",brd="#FFD54F",bgHead="#FFF3CD",colHead="#7B6A00",colTxt="#5A4E00";
+  if(tema==="crimson"){bgBox="#FFF0F2";brd="#DC143C";bgHead="#DC143C";colHead="#fff";colTxt="#8E0B27"}
+  else if(tema==="rosa"){bgBox="#FBEFF1";brd="#D9A7AF";bgHead="#F0D9DC";colHead="#0047FF";colTxt="#1F3A93"}
+  let s=`<div style="max-width:900px;margin:0 auto 16px;background:${bgBox};border:2px solid ${brd};border-radius:12px;overflow:hidden">`;
+  s+=`<div onclick="instrOpen['${k}']=${aperto?"false":"true"};(CUD.role==='admin'?renderAdmin:CUD.role==='viewer'?renderViewer:renderWorker)()" style="padding:10px 16px;background:${bgHead};cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:800;color:${colHead};font-size:14px"><span>💡 Come funziona questa pagina?</span><span style="font-size:18px">${aperto?"▲":"▼"}</span></div>`;
+  if(aperto)s+=`<div style="padding:14px 18px;font-size:14px;line-height:1.6;color:${colTxt}">${testo}</div>`;
   s+=`</div>`;
   return s;
 }
@@ -312,14 +325,14 @@ async function renderHomeOperatore(){
 async function renderMieiServizi(){
   const uid=CU.uid;
   const y=new Date().getFullYear(),m=new Date().getMonth()+1;
-  // Load current month services as the "anagrafica"
-  const svcs=await Promise.all(SVC.map((_,i)=>loadTS(uid,y,m,i)));
+  // Load current month services as the "anagrafica" (con ricerca nei mesi precedenti se il mese corrente e' vuoto)
+  const svcs=await Promise.all(SVC.map((_,i)=>loadSvcAnag(uid,y,m,i)));
   let h=`<div class="topbar"><div><h1>I miei servizi</h1><div class="sub">${esc(CUD.name)}</div></div><div style="display:flex;gap:6px"><button class="btn-o btn-s" style="background:#E8F4FD;color:#1565C0;border:1px solid #A3D0F5" onclick="ws.view='home';renderWorker()">🏠 Home</button><button class="btn-o btn-s" style="background:#F0D9DC;color:#0047FF;border:1px solid #E0B8BE" onclick="ws.view='riepilogo';renderWorker()">👀 Servizi configurati</button><button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div></div>`;
-  h+=`<div style="margin:14px 14px 0;padding:16px 20px;background:linear-gradient(135deg,#FFF3CD,#FFE69C);border:3px solid #E5BE01;border-radius:12px;text-align:center">`;
-  h+=`<div style="font-size:19px;font-weight:900;color:#7B6A00">⚙️ CONFIGURA I TUOI SERVIZI</div>`;
-  h+=`<div style="font-size:13px;color:#8A7500;font-weight:600;margin-top:3px">Puoi aggiungerne quando vuoi! ✨</div>`;
+  h+=`<div style="margin:14px 14px 0;padding:16px 20px;background:#DC143C;border:3px solid #9E0F2C;border-radius:12px;text-align:center;box-shadow:0 3px 10px rgba(220,20,60,.25)">`;
+  h+=`<div style="font-size:19px;font-weight:900;color:#fff">⚙️ CONFIGURA I TUOI SERVIZI</div>`;
+  h+=`<div style="font-size:13px;color:#FFE3E8;font-weight:600;margin-top:3px">Puoi aggiungerne quando vuoi! ✨</div>`;
   h+=`</div>`;
-  h+=`<div style="padding:14px 14px 0">`+instrBox("Ogni riquadro qui sotto è un <b>servizio</b> (un posto dove lavori). Per prepararne uno: scegli la <b>Mansione</b> (che lavoro fai), la <b>Sede</b> (Scuola, Casa di Quartiere…), scrivi la <b>Via</b>, il <b>Comune</b> e, se serve, il nome dell'<b>alunno</b>. Poi premi <b>💾 Salva</b>. Se correggi un dato e premi <b>Applica a tutti i mesi</b>, la correzione va su tutti i tuoi fogli.","cfg")+`</div>`;
+  h+=`<div style="padding:14px 14px 0">`+instrBox("Qui prepari i tuoi <b>servizi</b>. Per aggiungerne uno premi il pulsante rosso <b>➕ AGGIUNGI UN SERVIZIO</b> in fondo alla pagina: comparirà un riquadro da riempire. Alla fine premi <b>💾 Salva servizio</b>. Se un giorno cambi un dato e premi <b>🔄 Applica a tutti i mesi</b>, la correzione viene messa su tutti i tuoi fogli.","cfg","crimson")+`</div>`;
   h+=`<div style="padding:0 14px 14px">`;
   // Conta i servizi configurati e trova il primo slot libero
   let numConfig=0;let firstEmpty=-1;
@@ -339,7 +352,7 @@ async function renderMieiServizi(){
     const dettagli=s?s.dettagli||"":"";
     const comune=s?s.comune||"":"";
     const alunno=s?s.alunno||"":"";
-    const svcCol=SVC_COLORS[i];
+    const svcCol=SVC_BORD[i];
     h+=`<div style="background:var(--card);border:2px solid ${hasData?'#333':'#DC143C'};border-left:8px solid ${svcCol};border-radius:var(--rad);padding:12px 14px;margin-bottom:10px">`;
     h+=`<div style="font-weight:800;font-size:15px;color:#1a1a1a;margin-bottom:8px">${SVC_LABELS[i]}${hasData?"":' <span style="color:#DC143C">— nuovo, da compilare</span>'}</div>`;
     h+=`<div style="display:flex;gap:6px;flex-wrap:wrap">`;
@@ -370,28 +383,32 @@ async function renderMieiServizi(){
 async function renderRiepilogoServizi(){
   const uid=CU.uid;
   const y=new Date().getFullYear(),m=new Date().getMonth()+1;
-  const svcs=await Promise.all(SVC.map((_,i)=>loadTS(uid,y,m,i)));
-  let h=`<div class="topbar"><div><h1>I tuoi servizi configurati</h1><div class="sub">${esc(CUD.name)}</div></div><div style="display:flex;gap:6px"><button class="btn-o btn-s" style="background:#E8F4FD;color:#1565C0;border:1px solid #A3D0F5" onclick="ws.view='home';renderWorker()">🏠 Home</button><button class="btn-o btn-s" style="background:#FFF3CD;color:#7B6A00;border:1px solid #E5BE01" onclick="ws.addingService=false;ws.view='servizi';renderWorker()">⚙️ Configura</button><button class="btn-o btn-s" style="background:#E8F5E9;color:#1A6B3C;border:1px solid #A9D9BE" onclick="ws.view='foglio';renderWorker()">📋 Foglio ore</button><button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div></div>`;
+  const svcs=await Promise.all(SVC.map((_,i)=>loadSvcAnag(uid,y,m,i)));
+  let h=`<div class="topbar"><div><h1>I tuoi servizi configurati</h1><div class="sub">${esc(CUD.name)}</div></div><div style="display:flex;gap:6px"><button class="btn-o btn-s" style="background:#E8F4FD;color:#1565C0;border:1px solid #A3D0F5" onclick="ws.view='home';renderWorker()">🏠 Home</button><button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div></div>`;
   let anyConfigured=false;
   for(let i=0;i<20;i++){if(svcs[i]&&svcs[i].mansione)anyConfigured=true}
   if(!anyConfigured){
-    h+=`<div style="padding:40px 20px;text-align:center;color:var(--txt2)"><div style="font-size:16px;margin-bottom:12px">Non hai ancora configurato nessun servizio.</div><button style="padding:12px 20px;font-size:14px;font-weight:700;background:#FFF3CD;color:#7B6A00;border:2px solid #E5BE01;border-radius:8px;cursor:pointer" onclick="ws.addingService=true;ws.view='servizi';renderWorker()">⚙️ Vai a configurare i servizi</button></div>`;
+    h+=`<div style="padding:40px 20px;text-align:center;color:var(--txt2)"><div style="font-size:16px;margin-bottom:12px">Non hai ancora preparato nessun servizio.</div><div style="font-size:14px;margin-bottom:16px">Torna alla Home e premi il riquadro rosso <b>"QUI PUOI CLICCARE SE DEVI CONFIGURARE UN SERVIZIO"</b>.</div><button style="padding:12px 20px;font-size:14px;font-weight:700;background:#F0D9DC;color:#0047FF;border:2px solid #D9A7AF;border-radius:8px;cursor:pointer" onclick="ws.view='home';renderWorker()">🏠 Torna alla Home</button></div>`;
     $("app-main").innerHTML=h;return;
   }
-  h+=`<div style="padding:16px 14px">`+instrBox("Qui vedi tutti i servizi che hai già <b>preparato</b>. Ognuno è un rettangolo con il suo <b>colore</b>: lo ritroverai uguale nel foglio ore, così li riconosci al volo. Se vuoi cambiarli, usa il pulsante <b>⚙️ Configura</b> in alto.","rie")+`<div style="font-size:13px;color:var(--txt2);margin-bottom:14px;text-align:center">Ecco i servizi che hai configurato. Ognuno ha un suo colore, lo ritroverai uguale nel foglio ore.</div>`;
+  h+=`<div style="padding:16px 14px">`+instrBox("Qui vedi tutti i servizi che hai già preparato. Ogni servizio è un rettangolo con un <b>colore</b> diverso: ritrovi lo stesso colore nel foglio ore, così lo riconosci subito. <b>Premi sul servizio</b> per aprire il suo foglio ore e segnare le tue ore. Per aggiungere o cambiare un servizio, torna alla <b>🏠 Home</b> e premi il riquadro rosso.","rie","rosa")+`<div style="font-size:14px;color:#0047FF;font-weight:700;margin-bottom:14px;text-align:center">👇 Premi sul servizio per aprire il suo foglio ore</div>`;
   h+=`<div style="display:flex;flex-direction:column;gap:10px">`;
   for(let i=0;i<20;i++){
     const s=svcs[i];
     if(!s||!s.mansione)continue;
     const col=SVC_COLORS[i];
-    h+=`<div style="background:${col};border:2px solid #333;border-radius:10px;padding:14px 18px;box-shadow:0 2px 5px rgba(0,0,0,.1)">`;
+    h+=`<button onclick="ws.si=${i};ws.view='foglio';renderWorker()" style="display:block;width:100%;text-align:left;background:${col};border:3px solid ${SVC_BORD[i]};border-radius:10px;padding:14px 18px;box-shadow:0 2px 5px rgba(0,0,0,.1);cursor:pointer;font-family:Calibri,Arial,sans-serif" onmouseover="this.style.transform='scale(1.01)'" onmouseout="this.style.transform='scale(1)'">`;
+    h+=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">`;
+    h+=`<div>`;
     h+=`<div style="font-size:11px;font-weight:800;color:#1a1a1a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;opacity:.7">${SVC_LABELS[i]}</div>`;
-    h+=`<div style="font-size:16px;font-weight:800;color:#1a1a1a;margin-bottom:2px">${esc(s.mansione)}</div>`;
-    h+=`<div style="font-size:14px;color:#333">${esc(s.sede||"")}${s.dettagli?" · "+esc(s.dettagli):""}${s.comune?" ("+esc(s.comune)+")":""}${s.alunno?" · 👤 "+esc(s.alunno):""}</div>`;
+    h+=`<div style="font-size:16px;font-weight:800;color:#1a1a1a;margin-bottom:2px">${esc((s.mansione||"").toUpperCase())}</div>`;
+    h+=`<div style="font-size:14px;color:#333">${esc((s.sede||"").toUpperCase())}${s.dettagli?" · "+esc(s.dettagli.toUpperCase()):""}${s.comune?" ("+esc(s.comune.toUpperCase())+")":""}${s.alunno?" · 👤 "+esc(s.alunno.toUpperCase()):""}</div>`;
     h+=`</div>`;
+    h+=`<div style="font-size:13px;font-weight:800;color:#1a1a1a;white-space:nowrap;opacity:.75">📋 Apri foglio ›</div>`;
+    h+=`</div>`;
+    h+=`</button>`;
   }
   h+=`</div>`;
-  h+=`<div style="margin-top:18px;text-align:center"><button style="padding:12px 20px;font-size:14px;font-weight:700;background:#1565C0;color:#fff;border:none;border-radius:8px;cursor:pointer" onclick="ws.view='foglio';renderWorker()">📋 Vai al foglio ore per inserire le ore</button></div>`;
   h+=`</div>`;
   $("app-main").innerHTML=h;
 }
@@ -462,7 +479,7 @@ async function loadLightOps(editorUid){
 async function renderLightEditor(){
   const uid=CU.uid;const y=ls.year;
   const ops=await loadLightOps(uid);
-  let h=`<div class="topbar"><div><h1>🗂️ Operatori light</h1><div class="sub">${esc(CUD.name)} — Editor</div></div><div style="display:flex;gap:6px"><button class="btn-o btn-s" style="background:#E8F5E9;color:#1A6B3C;border:1px solid #A9D9BE" onclick="ws.view='foglio';renderWorker()">📋 Il mio foglio ore</button><button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div></div>`;
+  let h=`<div class="topbar"><div><h1>🗂️ Operatori light</h1><div class="sub">${esc(CUD.name)} — Editor</div></div><div style="display:flex;gap:6px"><button class="btn-o btn-s" style="background:#E8F4FD;color:#1565C0;border:1px solid #A3D0F5" onclick="ws.view='home';renderWorker()">🏠 Home</button><button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div></div>`;
   h+=`<div style="padding:14px 14px 0">`+instrBox("Qui gestisci gli <b>operatori light</b>: persone che fanno poche ore e non hanno un loro accesso. Premi <b>➕ Aggiungi operatore light</b> per inserirne uno (nome, ruolo, se è pagato o volontario). Poi scrivi le <b>ore mese per mese</b> nella tabella, a quarti d'ora (0,25 · 0,50 · 0,75 o numeri interi). Puoi inserire la stessa persona più volte se insegna materie diverse.","led")+`</div>`;
   // Controls
   h+=`<div style="padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--brd);background:var(--bg)">`;
@@ -644,7 +661,23 @@ async function renderWorker(){
   h+=`<button id="btn-save" style="padding:8px 16px;font-size:13px;font-weight:700;background:#1D9E75;color:#fff;border:none;border-radius:8px;cursor:pointer;margin-left:auto;${monthLocked?'display:none':''}" onclick="manualSave()">💾 Salva</button>`;
   h+=`</div>`;
   h+=`<div class="svc-tabs">`;
-  SVC.forEach((l,i)=>{const ac=i===si?"active":"";const configured=!!names[i];const nm=configured?`<span class="sn">${esc(names[i])}</span>`:`<span class="sn" style="color:#DC143C;font-weight:800">⚠️ DA CONFIGURARE</span>`;const tabCol=i===si?`background:${SVC_COLORS[i]};border-color:#333;color:#1a1a1a`:(configured?"":"background:#FFF0F0;border-color:#DC143C");h+=`<button class="svc-tab ${ac}" style="${tabCol}" onclick="ws.si=${i};renderWorker()">${SVC_LABELS[i]}${nm}</button>`});
+  SVC.forEach((l,i)=>{
+    const ac=i===si?"active":"";
+    const configured=!!names[i];
+    const nm=configured?`<span class="sn">${esc(names[i])}</span>`:`<span class="sn" style="color:#DC143C;font-weight:800">⚠️ DA CONFIGURARE</span>`;
+    let tabCol;
+    if(i===si){
+      // Tab attivo: cornice RAL pieno + sfondo schiarito
+      tabCol=`background:${SVC_COLORS[i]};border:3px solid ${SVC_BORD[i]};color:#1a1a1a;box-shadow:0 2px 6px rgba(0,0,0,.18)`;
+    } else if(!configured){
+      // Da configurare: resta rosso e visibile anche se non attivo (e' un avviso)
+      tabCol="background:#FFF0F0;border:1.5px solid #DC143C;color:#777";
+    } else {
+      // Tab non attivo: "morto", grigio spento
+      tabCol="background:#EDEDED;border:1.5px solid #D5D5D5;color:#9A9A9A;opacity:.75";
+    }
+    h+=`<button class="svc-tab ${ac}" style="${tabCol}" onclick="ws.si=${i};renderWorker()">${SVC_LABELS[i]}${nm}</button>`;
+  });
   h+=`</div>`;
   if(monthLocked){
     h+=`<div style="padding:10px 14px;background:#FCEBEB;border-bottom:2px solid #E24B4A;text-align:center;font-weight:700;color:#A32D2D;font-size:13px">🔒 Mese chiuso dall'amministratore — non modificabile</div>`;
@@ -653,7 +686,7 @@ async function renderWorker(){
   const svcBg=SVC_COLORS[si]||"var(--bg)";
   const isConfigured=!!names[si];
   // Colored band indicating current service
-  h+=`<div style="padding:6px 14px;background:${svcBg};border-bottom:2px solid rgba(0,0,0,.08);font-size:12px;font-weight:700;color:#333">📋 Stai compilando: ${SVC_LABELS[si]}</div>`;
+  h+=`<div style="padding:6px 14px;background:${svcBg};border-left:8px solid ${SVC_BORD[si]};border-bottom:2px solid ${SVC_BORD[si]};font-size:12px;font-weight:700;color:#1a1a1a">📋 Stai compilando: ${SVC_LABELS[si]}</div>`;
   if(!isConfigured){
     // OPTION A: not configured -> tell to go configure it in its page, NO fields here
     h+=`<div style="margin:20px 14px;padding:22px 20px;background:#FFF0F0;border:3px solid #DC143C;border-radius:12px;text-align:center">`;
@@ -666,7 +699,7 @@ async function renderWorker(){
     _rendering=false;return;
   }
   // Configured: show read-only header with the service data
-  h+=`<div style="padding:10px 14px;background:${svcBg};border-bottom:1px solid var(--brd)">`;
+  h+=`<div style="margin:10px 14px;padding:10px 14px;background:${svcBg};border:3px solid ${SVC_BORD[si]};border-radius:8px">`;
   h+=`<div style="font-size:15px;font-weight:800;color:#1a1a1a">${esc(mansione.toUpperCase())}${sede?` <span style="font-weight:600">/ ${esc(sede.toUpperCase())}</span>`:""}</div>`;
   h+=`<div style="font-size:13px;color:#444;margin-top:2px">${esc(dettagli.toUpperCase())}${comune?` (${esc(comune.toUpperCase())})`:""}${alunno?` · 👤 ${esc(alunno.toUpperCase())}`:""}</div>`;
   h+=`<div style="font-size:11px;color:#666;margin-top:4px">Per modificare questi dati vai su <b>🏠 Home → Configura un servizio</b></div>`;
@@ -693,6 +726,14 @@ async function renderWorker(){
   }finally{_rendering=false;}
 }
 async function loadAllSvcLabels(uid,y,m){const n=["","","","","","","","","","","","","","","","","","","",""];for(let i=0;i<20;i++){const d=await loadTS(uid,y,m,i);if(d&&d.mansione)n[i]=d.mansione+(d.sede?" / "+d.sede:"")+(d.dettagli?" - "+d.dettagli:"")+(d.comune?" ("+d.comune+")":"")+(d.alunno?" ["+d.alunno+"]":"")}return n}
+// Carica l'anagrafica di un servizio: prima il mese corrente, altrimenti il piu' recente mese precedente.
+// Serve agli operatori gia' iscritti che non hanno ancora aperto il foglio del mese corrente.
+async function loadSvcAnag(uid,y,m,i){
+  const cur=await loadTS(uid,y,m,i);
+  if(cur&&cur.mansione)return cur;
+  const prev=await findPrevMonth(uid,y,m,i);
+  return prev||cur;
+}
 async function findPrevMonth(uid,y,m,si){
   let py=y,pm=m-1;if(pm<1){pm=12;py--}
   for(let i=0;i<12;i++){const d=await loadTS(uid,py,pm,si);if(d&&d.mansione)return d;pm--;if(pm<1){pm=12;py--}if(py<2025)break}
@@ -743,7 +784,11 @@ function buildTable(days,nd,y,m,readonly){
     const hasInd=!!(e.iF&&e.iT);
     const motDis=hasInd?"":readonly?"disabled":"disabled";
     h+=`<td class="sep${hasAbs?" bk":""}" id="mot-cell-${d}"${!hasInd&&!hasAbs?' style="opacity:.3"':""}><select class="sl" id="mot-${d}" ${hasAbs?"disabled":hasInd?"":ronly||"disabled"} onchange="uD(${d},'mot',this.value)"${e.mot?' style="background:var(--amb-bg);color:var(--amb);font-size:8px;font-weight:600"':""}>`;
-    MOT_TYPES.forEach(mt=>{const sel=(e.mot||"")===mt?" selected":"";h+=`<option value="${esc(mt)}"${sel}>${mt||"—"}</option>`});
+    const motCur=motNorm(e.mot||"");
+    const motList=MOT_TYPES.slice();
+    // Voce storica non piu' in elenco (es. una dicitura tolta): la mostro comunque, per non perdere il dato gia' scritto
+    if(motCur&&motList.indexOf(motCur)<0)motList.push(motCur);
+    motList.forEach(mt=>{const sel=motCur===mt?" selected":"";h+=`<option value="${esc(mt)}"${sel}>${mt||"—"}</option>`});
     h+=`</select></td>`;
     // Assenza
     h+=`<td class="sep${hasPerm?" bka":""}"><select class="sl" ${hasPerm?"disabled":ronly} onchange="onAbs(${d},this.value)"${hasAbs?' style="background:var(--red-bg);color:#A32D2D;font-weight:700;font-size:8.5px"':""}>`;
@@ -930,23 +975,139 @@ window.saveAlunno=async function(v){
 };
 
 // ========== ADMIN VIEW ==========
-let as={view:"list",uid:null,name:"",year:new Date().getFullYear(),month:new Date().getMonth()+1,subTab:"mese",scolYear:new Date().getMonth()>=8?new Date().getFullYear():new Date().getFullYear()-1,lightYear:new Date().getFullYear(),lightFrom:0,lightTo:13,lightShowSkip:false,lightDetail:false};
+let as={view:"list",uid:null,name:"",year:new Date().getFullYear(),month:new Date().getMonth()+1,subTab:"mese",svcPer:"civile",viPer:"civile",scolYear:new Date().getMonth()>=8?new Date().getFullYear():new Date().getFullYear()-1,lightYear:new Date().getFullYear(),lightFrom:0,lightTo:13,lightShowSkip:false,lightDetail:false};
 function renderAdmin(){
   if(as.view==="list")renderAdminList();
   else if(as.view==="worker")renderAdminWorker();
   else if(as.view==="quadro")renderAdminQuadro();
   else if(as.view==="quadroSc")renderAdminQuadroSc();
+  else if(as.view==="insieme")renderAdminInsieme();
   else if(as.view==="light")renderAdminLight();
 }
 async function getWorkers(){const snap=await db.collection("users").where("role","in",["worker","editor"]).get();const w=[];snap.forEach(d=>w.push({id:d.id,...d.data()}));w.sort((a,b)=>(a.name||"").localeCompare(b.name||""));return w}
 async function getViewers(){const snap=await db.collection("users").where("role","==","viewer").get();const v=[];snap.forEach(d=>v.push({id:d.id,...d.data()}));v.sort((a,b)=>(a.name||"").localeCompare(b.name||""));return v}
 async function getAllLightOps(){const snap=await db.collection("lightsheets").get();const o=[];snap.forEach(d=>o.push({id:d.id,...d.data()}));return o}
 
+// ===== VISTA D'INSIEME: tutti gli operatori x tutti i servizi, filtrata per periodo =====
+// Usa una query unica per anno (i documenti contengono year/month/serviceIdx/workerUid/workerName)
+// invece di leggere operatore per operatore: molto piu' veloce.
+let viRows=[],viCols=[],viPeriods=[],viLabel="";
+async function fetchInsieme(periods){
+  const anni=[];periods.forEach(p=>{if(anni.indexOf(p[0])<0)anni.push(p[0])});
+  const docs=[];
+  for(const yy of anni){
+    const snap=await db.collection("timesheets").where("year","==",yy).get();
+    snap.forEach(d=>docs.push(d.data()));
+  }
+  // Tengo solo i mesi del periodo richiesto
+  const key=p=>p[0]+"_"+p[1];
+  const wanted={};periods.forEach(p=>wanted[key(p)]=true);
+  return docs.filter(d=>wanted[d.year+"_"+d.month]);
+}
+async function renderAdminInsieme(){
+  as.view="insieme";
+  const per=as.viPer||"civile";
+  const y=as.year,m=as.month,scolY=as.scolYear||y;
+  let periods,perLabel;
+  if(per==="mese"){periods=[[y,m]];perLabel=MONTHS[m-1]+" "+y}
+  else if(per==="scol"){periods=scolMonths(scolY);perLabel="Anno scolastico "+scolY+"/"+(scolY+1)}
+  else {periods=civileMonths(y);perLabel="Anno civile "+y}
+  viLabel=perLabel;viPeriods=periods;viCols=periods.map(p=>MONTHS[p[1]-1].substring(0,3)+(per==="scol"?" "+String(p[0]).substring(2):""));
+  let h=`<div class="topbar"><div><h1>🔎 Vista d'insieme</h1><div class="sub">Tutti gli operatori × tutti i servizi</div></div><button class="btn-o btn-s" onclick="auth.signOut()">Esci</button></div>`;
+  h+=adminTabs('insieme');
+  // Filtri periodo
+  h+=`<div class="controls"><span style="font-size:13px;font-weight:700;color:#333">Periodo:</span>`;
+  ["mese|Mese","civile|Anno civile","scol|Anno scolastico"].forEach(o=>{
+    const k=o.split("|")[0],lab=o.split("|")[1],on=per===k;
+    h+=`<button style="padding:6px 12px;font-size:13px;font-weight:700;border:2px solid ${on?"#1565C0":"#A3D0F5"};background:${on?"#1565C0":"#E8F4FD"};color:${on?"#fff":"#1565C0"};border-radius:20px;cursor:pointer" onclick="as.viPer='${k}';renderAdmin()">${lab}</button>`;
+  });
+  if(per==="mese"){
+    h+=`<select onchange="as.month=+this.value;renderAdmin()">`;MONTHS.forEach((mn,i)=>h+=`<option value="${i+1}"${i+1===m?" selected":""}>${mn}</option>`);h+=`</select>`;
+    h+=`<select onchange="as.year=+this.value;renderAdmin()">`;for(let yy=2025;yy<=2035;yy++)h+=`<option value="${yy}"${yy===y?" selected":""}>${yy}</option>`;h+=`</select>`;
+  } else if(per==="scol"){
+    h+=`<select onchange="as.scolYear=+this.value;renderAdmin()">`;for(let yy=2025;yy<=2034;yy++)h+=`<option value="${yy}"${yy===scolY?" selected":""}>${yy}/${yy+1}</option>`;h+=`</select>`;
+  } else {
+    h+=`<select onchange="as.year=+this.value;renderAdmin()">`;for(let yy=2025;yy<=2035;yy++)h+=`<option value="${yy}"${yy===y?" selected":""}>${yy}</option>`;h+=`</select>`;
+  }
+  h+=`<button style="padding:7px 14px;font-size:13px;font-weight:700;background:#1D9E75;color:#fff;border:none;border-radius:6px;cursor:pointer;margin-left:auto" onclick="exportInsieme()">⬇️ Scarica Excel</button>`;
+  h+=`</div>`;
+  $("app-main").innerHTML=h+`<div style="padding:30px;text-align:center;color:var(--txt2)">Caricamento…</div>`;
+  const docs=await fetchInsieme(periods);
+  // Raggruppo per operatore + servizio
+  const grp={};
+  for(const d of docs){
+    const k=d.workerUid+"|"+d.serviceIdx;
+    if(!grp[k])grp[k]={uid:d.workerUid,name:d.workerName||"",si:d.serviceIdx,mans:"",sede:"",dett:"",com:"",alun:"",perMese:{},O:0,I:0,A:0,P:0,Sp:0};
+    const g=grp[k];
+    if(d.workerName)g.name=d.workerName;
+    if(d.mansione){g.mans=d.mansione;g.sede=d.sede||"";g.dett=d.dettagli||"";g.com=d.comune||"";g.alun=d.alunno||""}
+    const nd=daysIn(d.month,d.year);let mO=0,mI=0;
+    if(d.days)for(let dd=1;dd<=nd;dd++){
+      const e=d.days[dd];if(!e)continue;
+      if(e.spole)g.Sp+=parseInt(e.spole)||0;
+      if(e.perm){const p=parseFloat(String(e.perm).replace(",","."));if(!Number.isNaN(p))g.P+=p}
+      if(e.absence)g.A++;else{mO+=calcOrd(e);mI+=calcInd(e)}
+    }
+    g.O+=mO;g.I+=mI;
+    const mk=d.year+"_"+d.month;
+    g.perMese[mk]=(g.perMese[mk]||0)+mO+mI;
+  }
+  const rows=Object.keys(grp).map(k=>grp[k]).filter(g=>g.mans||g.O||g.I||g.A);
+  rows.sort((a,b)=>a.name===b.name?a.si-b.si:a.name.localeCompare(b.name));
+  viRows=rows;
+  if(!rows.length){$("app-main").innerHTML=h+`<div style="padding:40px;text-align:center;color:var(--txt2);font-size:15px">Nessun dato per ${esc(perLabel)}.</div>`;return}
+  h+=`<div class="tbl-wrap" style="padding:12px 14px;overflow-x:auto"><table class="tbl" style="font-size:12px;border-collapse:collapse;width:100%">`;
+  h+=`<thead><tr><th style="text-align:left;min-width:110px">Operatore</th><th style="text-align:left;min-width:190px">Servizio</th>`;
+  periods.forEach((p,i)=>h+=`<th style="font-size:9px">${viCols[i]}</th>`);
+  h+=`<th style="background:#e8f5ee">Ord.</th><th style="background:#e8f5ee">Ind.</th><th style="background:#fdeaea">Ass.<br>gg</th><th style="background:#f3e8fd">Spole<br>n.</th><th style="background:#E5BE01;color:#3A2E00">TOT ORE</th></tr></thead><tbody>`;
+  const totM={};let TO=0,TI=0,TA=0,TSp=0;
+  let prevName="";
+  for(const g of rows){
+    const sameOp=g.name===prevName;prevName=g.name;
+    h+=`<tr>`;
+    h+=`<td style="text-align:left;font-weight:700;color:#1a1a1a;white-space:nowrap;cursor:pointer" onclick="as.view='worker';as.uid='${g.uid}';as.name='${esc(g.name)}';as.subTab='servizio';renderAdmin()">${sameOp?"":esc(g.name)}</td>`;
+    h+=`<td style="text-align:left;font-size:11px;background:${SVC_COLORS[g.si]};border-left:5px solid ${SVC_BORD[g.si]}">${SVC_LABELS[g.si]} ${esc((g.mans||"").toUpperCase())}${g.sede?" / "+esc(g.sede.toUpperCase()):""}${g.dett?" · "+esc(g.dett.toUpperCase()):""}${g.com?" ("+esc(g.com.toUpperCase())+")":""}${g.alun?" · 👤 "+esc(g.alun.toUpperCase()):""}</td>`;
+    for(const p of periods){
+      const mk=p[0]+"_"+p[1];const v=g.perMese[mk]||0;
+      totM[mk]=(totM[mk]||0)+v;
+      h+=`<td style="font-size:10px;${v>0?"font-weight:600;color:var(--g2)":"color:#ccc"}">${v>0?fmtDec(v):"—"}</td>`;
+    }
+    TO+=g.O;TI+=g.I;TA+=g.A;TSp+=g.Sp;
+    h+=`<td style="font-weight:700;color:#1A6B3C;background:#f0faf5">${fmtDec(g.O)||"—"}</td>`;
+    h+=`<td style="font-weight:700;color:#B8860B;background:#f0faf5">${fmtDec(g.I)||"—"}</td>`;
+    h+=`<td style="color:#A32D2D;font-weight:700">${g.A||"—"}</td>`;
+    h+=`<td style="color:var(--prp);font-weight:700">${g.Sp||"—"}</td>`;
+    h+=`<td style="background:#FBF1D9;font-weight:800;color:#3A2E00">${fmtDec(g.O+g.I)||"—"}</td>`;
+    h+=`</tr>`;
+  }
+  h+=`<tr style="background:#FFF9E6"><td colspan="2" style="text-align:left;font-weight:800;padding:6px 8px">TOTALE GENERALE</td>`;
+  for(const p of periods){const mk=p[0]+"_"+p[1];h+=`<td style="font-size:10px;font-weight:700">${totM[mk]?fmtDec(totM[mk]):"—"}</td>`}
+  h+=`<td style="font-weight:800;color:#1A6B3C">${fmtDec(TO)||"—"}</td><td style="font-weight:800;color:#B8860B">${fmtDec(TI)||"—"}</td><td style="font-weight:800;color:#A32D2D">${TA||"—"}</td><td style="font-weight:800;color:var(--prp)">${TSp||"—"}</td><td style="background:#E5BE01;font-weight:800;color:#3A2E00">${fmtDec(TO+TI)||"—"}</td></tr>`;
+  h+=`</tbody></table></div>`;
+  h+=`<div style="margin:8px 14px 20px;font-size:12px;color:var(--txt2)">Le <b>spole</b> sono un conteggio di trasferte (numero), non ore: non entrano nel totale ore. Premi sul nome di un operatore per aprire il suo riepilogo.</div>`;
+  $("app-main").innerHTML=h;
+}
+window.exportInsieme=function(){
+  if(!viRows.length){alert("Nessun dato da esportare");return}
+  const head=["Operatore","Servizio","Mansione","Sede","Via/Piazza","Comune","Alunno"].concat(viCols).concat(["Ordinarie","Indirette","Assenze (gg)","Permessi (h)","Spole (n.)","TOTALE ORE"]);
+  const rows=[head];
+  for(const g of viRows){
+    const r=[g.name,SVC_LABELS[g.si],(g.mans||"").toUpperCase(),(g.sede||"").toUpperCase(),(g.dett||"").toUpperCase(),(g.com||"").toUpperCase(),(g.alun||"").toUpperCase()];
+    viPeriods.forEach(p=>{const v=g.perMese[p[0]+"_"+p[1]]||0;r.push(v>0?Math.round(v*100)/100:"")});
+    r.push(Math.round(g.O*100)/100,Math.round(g.I*100)/100,g.A||"",Math.round(g.P*100)/100||"",g.Sp||"",Math.round((g.O+g.I)*100)/100);
+    rows.push(r);
+  }
+  const wb=XLSX.utils.book_new();const ws=XLSX.utils.aoa_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb,ws,"Vista d'insieme");
+  wb.Props={Title:"Vista d'insieme - "+viLabel,Author:"Christian",Company:"Spazio Ireos Società Cooperativa Sociale"};
+  XLSX.writeFile(wb,"Spazio Ireos Vista d'insieme "+viLabel.replace(/[\/ ]/g,"-")+".xlsx");
+};
 function adminTabs(active){
   return `<div class="tabs-admin">
     <button class="tab-a${active==='list'?' active':''}" onclick="as.view='list';renderAdmin()">Operatori</button>
     <button class="tab-a${active==='quadro'?' active':''}" onclick="as.view='quadro';renderAdmin()">Quadro anno civile</button>
     <button class="tab-a${active==='quadroSc'?' active':''}" onclick="as.view='quadroSc';renderAdmin()">Quadro anno scolastico</button>
+    <button class="tab-a${active==='insieme'?' active':''}" onclick="as.view='insieme';renderAdmin()">🔎 Vista d'insieme</button>
     <button class="tab-a${active==='light'?' active':''}" onclick="as.view='light';renderAdmin()">⚡ Operatori light</button>
   </div>`;
 }
@@ -1092,26 +1253,45 @@ async function renderAdminWorker(){
     if(!anyData)h+=`<p style="padding:20px 14px;color:var(--txt2);text-align:center">Nessun dato per ${MONTHS[m-1]} ${y}</p>`;
 
   } else if(sub==='servizio'){
-    h+=`<div class="controls"><select onchange="as.year=+this.value;renderAdmin()">`;
-    for(let yy=2025;yy<=2035;yy++)h+=`<option value="${yy}"${yy===y?" selected":""}>${yy}</option>`;
-    h+=`</select></div>`;
-    h+=`<div style="padding:14px"><h3 style="font-size:14px;font-weight:600;margin-bottom:8px">Riepilogo per servizio — ${y}</h3>`;
-    let gtO=0,gtI=0,gtA=0,anySvc=false;
+    // Filtro periodo: mese / anno civile / anno scolastico
+    const per=as.svcPer||"civile";
+    const scolY=as.scolYear||y;
+    let periods,perLabel;
+    if(per==="mese"){periods=[[y,m]];perLabel=MONTHS[m-1]+" "+y}
+    else if(per==="scol"){periods=scolMonths(scolY);perLabel="anno scolastico "+scolY+"/"+(scolY+1)}
+    else {periods=civileMonths(y);perLabel="anno civile "+y}
+    h+=`<div class="controls"><span style="font-size:13px;font-weight:700;color:#333">Periodo:</span>`;
+    ["mese|Mese","civile|Anno civile","scol|Anno scolastico"].forEach(o=>{
+      const k=o.split("|")[0],lab=o.split("|")[1],on=per===k;
+      h+=`<button style="padding:6px 12px;font-size:13px;font-weight:700;border:2px solid ${on?"#1565C0":"#A3D0F5"};background:${on?"#1565C0":"#E8F4FD"};color:${on?"#fff":"#1565C0"};border-radius:20px;cursor:pointer" onclick="as.svcPer='${k}';renderAdmin()">${lab}</button>`;
+    });
+    if(per==="mese"){
+      h+=`<select onchange="as.month=+this.value;renderAdmin()">`;MONTHS.forEach((mn,i)=>h+=`<option value="${i+1}"${i+1===m?" selected":""}>${mn}</option>`);h+=`</select>`;
+      h+=`<select onchange="as.year=+this.value;renderAdmin()">`;for(let yy=2025;yy<=2035;yy++)h+=`<option value="${yy}"${yy===y?" selected":""}>${yy}</option>`;h+=`</select>`;
+    } else if(per==="scol"){
+      h+=`<select onchange="as.scolYear=+this.value;renderAdmin()">`;for(let yy=2025;yy<=2034;yy++)h+=`<option value="${yy}"${yy===scolY?" selected":""}>${yy}/${yy+1}</option>`;h+=`</select>`;
+    } else {
+      h+=`<select onchange="as.year=+this.value;renderAdmin()">`;for(let yy=2025;yy<=2035;yy++)h+=`<option value="${yy}"${yy===y?" selected":""}>${yy}</option>`;h+=`</select>`;
+    }
+    h+=`</div>`;
+    h+=`<div style="padding:14px"><h3 style="font-size:14px;font-weight:600;margin-bottom:8px">Riepilogo per servizio — ${perLabel}</h3>`;
+    let gtO=0,gtI=0,gtA=0,gtSp=0,anySvc=false;
     const gAbsByType={};
     for(let si=0;si<20;si++){
-      let sO=0,sI=0,sA=0,hasAny=false;let lastMans="",lastSede="",lastDett="",lastCom="",lastAlun="";
-      for(let mm=1;mm<=12;mm++){const nd=daysIn(mm,y);const ts=await loadTS(uid,y,mm,si);if(ts){if(ts.mansione){lastMans=ts.mansione;lastSede=ts.sede||"";lastDett=ts.dettagli||"";lastCom=ts.comune||"";lastAlun=ts.alunno||""}if(ts.days)for(let d=1;d<=nd;d++){const e=ts.days[d];if(!e)continue;hasAny=true;if(e.absence){sA++;gAbsByType[e.absence]=(gAbsByType[e.absence]||0)+1}else{sO+=calcOrd(e);sI+=calcInd(e)}}}}
-      if(!hasAny)continue;anySvc=true;gtO+=sO;gtI+=sI;gtA+=sA;
-      h+=`<div style="background:var(--card);border:1px solid var(--brd);border-radius:var(--rad);padding:10px 14px;margin-bottom:8px">`;
-      h+=`<div style="font-weight:700;font-size:13px;margin-bottom:4px">${SVC_LABELS[si]} — ${esc(lastMans)}${lastSede?" / "+esc(lastSede):""}${lastDett?" - "+esc(lastDett):""}${lastCom?" ("+esc(lastCom)+")":""}${lastAlun?" ["+esc(lastAlun)+"]":""}</div>`;
-      h+=`<div style="display:flex;gap:16px;font-size:12px"><span style="color:var(--g2)"><strong>Ord:</strong> ${fmtDec(sO)||"0,00"}</span><span style="color:var(--amb)"><strong>Ind:</strong> ${fmtDec(sI)||"0,00"}</span><span style="color:#A32D2D"><strong>Ass:</strong> ${sA}gg</span><span style="color:var(--g2)"><strong>Tot:</strong> ${fmtDec(sO+sI)||"0,00"}</span></div></div>`;
+      let sO=0,sI=0,sA=0,sSp=0,hasAny=false;let lastMans="",lastSede="",lastDett="",lastCom="",lastAlun="";
+      for(const pp of periods){const py=pp[0],pm=pp[1];const nd=daysIn(pm,py);const ts=await loadTS(uid,py,pm,si);if(ts){if(ts.mansione){lastMans=ts.mansione;lastSede=ts.sede||"";lastDett=ts.dettagli||"";lastCom=ts.comune||"";lastAlun=ts.alunno||""}if(ts.days)for(let d=1;d<=nd;d++){const e=ts.days[d];if(!e)continue;hasAny=true;if(e.spole)sSp+=parseInt(e.spole)||0;if(e.absence){sA++;gAbsByType[e.absence]=(gAbsByType[e.absence]||0)+1}else{sO+=calcOrd(e);sI+=calcInd(e)}}}}
+      if(!hasAny)continue;anySvc=true;gtO+=sO;gtI+=sI;gtA+=sA;gtSp+=sSp;
+      h+=`<div style="background:${SVC_COLORS[si]};border:3px solid ${SVC_BORD[si]};border-radius:var(--rad);padding:10px 14px;margin-bottom:8px">`;
+      h+=`<div style="font-weight:700;font-size:13px;margin-bottom:4px;color:#1a1a1a">${SVC_LABELS[si]} — ${esc((lastMans||"").toUpperCase())}${lastSede?" / "+esc(lastSede.toUpperCase()):""}${lastDett?" - "+esc(lastDett.toUpperCase()):""}${lastCom?" ("+esc(lastCom.toUpperCase())+")":""}${lastAlun?" ["+esc(lastAlun.toUpperCase())+"]":""}</div>`;
+      h+=`<div style="display:flex;gap:16px;font-size:12px;flex-wrap:wrap"><span style="color:var(--g2)"><strong>Ord:</strong> ${fmtDec(sO)||"0,00"}</span><span style="color:var(--amb)"><strong>Ind:</strong> ${fmtDec(sI)||"0,00"}</span><span style="color:#A32D2D"><strong>Ass:</strong> ${sA}gg</span><span style="color:var(--g2)"><strong>Tot:</strong> ${fmtDec(sO+sI)||"0,00"}</span><span style="color:var(--prp)"><strong>Spole:</strong> ${sSp||0} (n. trasferte, non ore)</span></div></div>`;
     }
     if(anySvc){
       h+=`<div style="margin-top:12px;padding:14px 18px;background:#E8F5E9;border:2px solid #1D9E75;border-radius:var(--rad)">`;
-      h+=`<div style="font-weight:800;font-size:17px;color:#1A6B3C;margin-bottom:8px">TOTALE ANNUO ${y} (tutti i servizi)</div>`;
+      h+=`<div style="font-weight:800;font-size:17px;color:#1A6B3C;margin-bottom:8px">TOTALE ${perLabel.toUpperCase()} (tutti i servizi)</div>`;
       h+=`<div style="display:flex;gap:22px;font-size:16px;flex-wrap:wrap">`;
       h+=`<span><strong>Ordinarie:</strong> ${fmtDec(gtO)||"0,00"}</span>`;
       h+=`<span style="color:var(--amb)"><strong>Indirette:</strong> ${fmtDec(gtI)||"0,00"}</span>`;
+      h+=`<span style="color:var(--prp)"><strong>Spole:</strong> ${gtSp||0} (n. trasferte)</span>`;
       h+=`</div>`;
       h+=`<div style="margin-top:10px;padding:10px 16px;background:#E5BE01;border:2px solid #C9A600;border-radius:8px;display:inline-block"><span style="color:#3A2E00;font-weight:800;font-size:19px">✅ ORDINARIE + INDIRETTE: ${fmtDec(gtO+gtI)||"0,00"} ore</span></div>`;
       if(gtA>0){
@@ -1746,7 +1926,7 @@ window.exportExcel=async function(){
     const btn=event.target;btn.disabled=true;btn.textContent="Esportazione...";
     const workers=await getWorkers();
     const wb=XLSX.utils.book_new();
-    const MOT_LABELS=["","Preparazione materiali","Raccordo con coordinatore","Raccordo con genitore/i","Raccordo con insegnante/i","Raccordo con tiflologo","Redazione documenti","Riunione esterna","Altro"];
+    const MOT_LABELS=["","Formazione","Preparazione materiali","Raccordo con coordinatore/equipe","Raccordo con genitore/i","Raccordo con insegnante/i","Raccordo con Servizi specialistici","Redazione documenti/report/relazioni","Riunione esterna","Supervisione con esperti","Visita medica","Altro"];
 
     for(const w of workers){
       // Collect all year/month combos with data
@@ -1796,7 +1976,7 @@ window.exportExcel=async function(){
               if(e.absence)tA++;else{tO+=ord;tI+=ind}
               if(e.perm){const pv=parseFloat(String(e.perm).replace(",",".").replace("h",""));if(!isNaN(pv))tP+=pv}
               if(e.spole)tS+=parseInt(e.spole)||0;
-              rows.push([d,dow,e.t1f||"",e.t1t||"",e.t2f||"",e.t2t||"",e.iF||"",e.iT||"",e.mot||"",e.absence||"",e.perm||"",e.spole||"",tot>0?Math.round(tot*100)/100:""]);
+              rows.push([d,dow,e.t1f||"",e.t1t||"",e.t2f||"",e.t2t||"",e.iF||"",e.iT||"",motNorm(e.mot||""),e.absence||"",e.perm||"",e.spole||"",tot>0?Math.round(tot*100)/100:""]);
             }
             rows.push(["","TOTALI","","","","","","","",tA>0?tA+"gg":"",tP>0?String(tP).replace(".",",")+"h":"",tS||"",Math.round((tO+tI)*100)/100]);
             rows.push([]);
