@@ -246,17 +246,16 @@ function normT(v){
     return v;
   }
   if(!/^\d+$/.test(s))return v;
-  let h,mi;
-  if(s.length<=2){h=parseInt(s,10);mi=0}
-  else if(s.length===3){h=parseInt(s.substring(0,1),10);mi=parseInt(s.substring(1),10)}
-  else if(s.length===4){h=parseInt(s.substring(0,2),10);mi=parseInt(s.substring(2),10)}
-  else return v;
+  // Numero puro: convertito SOLO se di 4 cifre (es. 0900, 1330). 1-3 cifre lasciate invariate
+  // per evitare l'ambiguita' del "130" (potrebbe essere 1:30 o 13:00).
+  if(s.length!==4)return v;
+  const h=parseInt(s.substring(0,2),10),mi=parseInt(s.substring(2),10);
   if(h>=0&&h<24&&mi>=0&&mi<60)return String(h).padStart(2,"0")+":"+String(mi).padStart(2,"0");
   return v;
 }
 function parseT(s){if(!s)return null;const n=normT(String(s).trim());const p=n.replace(/[,;]/,".").replace(":",".").split(".");if(p.length<2)return null;const h=parseInt(p[0]),m=parseInt(p[1]||"0");if(isNaN(h)||isNaN(m))return null;return h+m/60}
 function fmtH(n){if(!n||n<=0)return"";const h=Math.floor(n),m=Math.round((n-h)*60);return h+":"+(m<10?"0":"")+m}
-function fmtDec(n){if(!n||n<=0)return"";const r=Math.round(n*100)/100;return r.toFixed(2).replace(".",",")}
+function fmtDec(n){if(!n||n<=0)return"";const r=Math.round((n+Number.EPSILON)*100)/100;return r.toFixed(2).replace(".",",")}
 function calcOrd(e){let t=0;const pairs=[["t1f","t1t"],["t2f","t2t"],["t3f","t3t"],["t4f","t4t"]];for(const[f,tt]of pairs){const a=parseT(e[f]),b=parseT(e[tt]);if(a!==null&&b!==null&&b>a)t+=b-a}return t}
 function calcInd(e){let t=0;const pairs=[["iF","iT"],["iF2","iT2"]];for(const[f,tt]of pairs){const a=parseT(e[f]),b=parseT(e[tt]);if(a!==null&&b!==null&&b>a)t+=b-a}return t}
 // ===== Conteggio assenze PER GIORNATA (non per servizio): 1 giorno = 1 =====
@@ -476,6 +475,9 @@ async function renderRiepilogoServizi(){
   $("app-main").innerHTML=h;
 }
 window.saveServiceAnagrafica=async function(i){
+  if(window._savingSvc)return; // evita doppio salvataggio da doppio click (causa di duplicati)
+  window._savingSvc=true;
+  try{
   const uid=CU.uid;
   const y=new Date().getFullYear(),m=new Date().getMonth()+1;
   const mansione=document.getElementById("ms-mans-"+i).value;
@@ -496,9 +498,11 @@ window.saveServiceAnagrafica=async function(i){
   const existing=await loadTS(uid,y,m,i);
   const days=existing?existing.days||{}:{};
   await saveTS(uid,y,m,i,days,mansione,sede,dettagli,comune,alunno,CUD.name);
+  _preloadDone[uid]=false; // forza il ricaricamento: il nuovo servizio comparirà subito ovunque
   ws.addingService=false;
   alert(SVC_LABELS[i]+" salvato! Lo ritroverai precompilato ogni mese.");
   renderMieiServizi();
+  }finally{window._savingSvc=false}
 };
 window.applyServiceToAllMonths=async function(i){
   const uid=CU.uid;
@@ -527,6 +531,7 @@ window.applyServiceToAllMonths=async function(i){
     }
   }
   await Promise.all(saveJobs);
+  _preloadDone[uid]=false; // forza il ricaricamento dopo l'applicazione multipla
   alert("Fatto! Dati aggiornati su "+count+" mese/i."+(skipped>0?"\n"+skipped+" mese/i saltato/i perché chiuso/i.":""));
   renderMieiServizi();
 };
@@ -675,7 +680,10 @@ window.saveLightSkip=async function(opId,y,ci,v){
 };
 
 let _rendering=false;
+let _lastCtx="";
 async function renderWorker(){
+  const ctx=ws.view+"_"+ws.si;
+  if(ctx!==_lastCtx){flushPendingSave();_lastCtx=ctx}
   if(ws.view==="home"){renderHomeOperatore();return}
   if(ws.view==="servizi"){renderMieiServizi();return}
   if(ws.view==="riepilogo"){renderRiepilogoServizi();return}
@@ -781,7 +789,7 @@ async function renderWorker(){
   h+=`<div style="font-size:11px;color:#666;margin-top:4px">Per modificare questi dati vai su <b>🏠 Home → Configura un servizio</b></div>`;
   h+=`</div>`;
   h+=`</div>`;
-  h+=`<div style="padding:14px 14px 0">`+instrBox("Qui segni gli <b>orari</b> di ogni giorno del mese. Scrivi l'ora di <b>entrata</b> e di <b>uscita</b>. <b>Non serve mettere i due punti</b>: puoi scrivere <b>900</b> per le 09:00, <b>930</b> per le 09:30, <b>1430</b> per le 14:30; il programma li sistema da solo. Se un giorno sei assente, scegli il motivo nella colonna <b>Assenza</b>: l'assenza vale per <b>tutta la giornata</b>, quindi la ritroverai già segnata anche sugli altri tuoi servizi. Quando hai finito, premi il pulsante <b>💾 SALVA</b>. Il totale delle ore si calcola da solo.","fog")+`</div>`;
+  h+=`<div style="padding:14px 14px 0">`+instrBox("Qui segni gli <b>orari</b> di ogni giorno del mese. Scrivi l'ora di <b>entrata</b> e di <b>uscita</b>. <b>Non serve mettere i due punti</b>: scrivi l'ora con <b>4 cifre</b> e il programma la sistema da sola. Per esempio <b>0900</b> diventa 09:00, <b>0930</b> diventa 09:30, <b>1430</b> diventa 14:30. Ricordati lo <b>zero davanti</b> per le ore prima delle 10 (es. 0800 per le otto). Se un giorno sei assente, scegli il motivo nella colonna <b>Assenza</b>: l'assenza vale per <b>tutta la giornata</b>, quindi la ritroverai già segnata anche sugli altri tuoi servizi. Quando hai finito, premi il pulsante <b>💾 SALVA</b>. Il totale delle ore si calcola da solo.","fog")+`</div>`;
   {
     // Check if this combination was on a different tab in the PREVIOUS month (parallel load)
     let warnMsg="";
@@ -983,13 +991,13 @@ function buildTable(days,nd,y,m,readonly,opts){
     h+=`<td class="dc">${d}</td><td class="dn${red?" red":""}">${dayN(y,m,d)}</td>`;
     // Fasce dirette
     for(const[cf,ct]of DIR){
-      h+=`<td class="sep${hasAbs?" bk":""}"><input class="ti" value="${esc(e[cf]||"")}" ${hasAbs?"disabled":ronly} oninput="uD(${d},'${cf}',this.value)" onblur="normBlur(this,()=>uD(${d},'${cf}',this.value))"></td>`;
-      h+=`<td${hasAbs?' class="bk"':""}><input class="ti" value="${esc(e[ct]||"")}" ${hasAbs?"disabled":ronly} oninput="uD(${d},'${ct}',this.value)" onblur="normBlur(this,()=>uD(${d},'${ct}',this.value))"></td>`;
+      h+=`<td class="sep${hasAbs?" bk":""}"><input class="ti" data-fld="${cf}" value="${esc(e[cf]||"")}" ${hasAbs?"disabled":ronly} oninput="uD(${d},'${cf}',this.value)" onblur="normBlur(this,()=>uD(${d},'${cf}',this.value),${d})"></td>`;
+      h+=`<td${hasAbs?' class="bk"':""}><input class="ti" data-fld="${ct}" value="${esc(e[ct]||"")}" ${hasAbs?"disabled":ronly} oninput="uD(${d},'${ct}',this.value)" onblur="normBlur(this,()=>uD(${d},'${ct}',this.value),${d})"></td>`;
     }
     // Fasce indirette
     for(const[cf,ct,cm]of IND){
-      h+=`<td class="sep${hasAbs?" bk":""}"><input class="ti" value="${esc(e[cf]||"")}" ${hasAbs?"disabled":ronly} oninput="uD(${d},'${cf}',this.value);toggleMot(${d})" onblur="normBlur(this,()=>{uD(${d},'${cf}',this.value);toggleMot(${d})})"></td>`;
-      h+=`<td${hasAbs?' class="bk"':""}><input class="ti" value="${esc(e[ct]||"")}" ${hasAbs?"disabled":ronly} oninput="uD(${d},'${ct}',this.value);toggleMot(${d})" onblur="normBlur(this,()=>{uD(${d},'${ct}',this.value);toggleMot(${d})})"></td>`;
+      h+=`<td class="sep${hasAbs?" bk":""}"><input class="ti" data-fld="${cf}" value="${esc(e[cf]||"")}" ${hasAbs?"disabled":ronly} oninput="uD(${d},'${cf}',this.value);toggleMot(${d})" onblur="normBlur(this,()=>{uD(${d},'${cf}',this.value);toggleMot(${d})},${d})"></td>`;
+      h+=`<td${hasAbs?' class="bk"':""}><input class="ti" data-fld="${ct}" value="${esc(e[ct]||"")}" ${hasAbs?"disabled":ronly} oninput="uD(${d},'${ct}',this.value);toggleMot(${d})" onblur="normBlur(this,()=>{uD(${d},'${ct}',this.value);toggleMot(${d})},${d})"></td>`;
     }
     // Motivazioni (una per fascia indiretta)
     for(const[cf,ct,cm]of IND){
@@ -1035,6 +1043,23 @@ function buildTable(days,nd,y,m,readonly,opts){
 
 // Day update functions
 let svTimer=null;
+// Flush del salvataggio pendente: salva SUBITO l'ultimo dato modificato.
+// Serve a non perdere l'ultima modifica se si chiude il browser o si cambia vista entro il debounce.
+let _pendingSave=null;
+function flushPendingSave(){
+  if(!_pendingSave)return;
+  const p=_pendingSave;_pendingSave=null;
+  clearTimeout(svTimer);
+  const ts=cache[p.k];
+  if(ts)saveTS(p.uid,p.y,p.m,p.si,ts.days||{},ts.mansione||"",ts.sede||"",ts.dettagli||"",ts.comune||"",ts.alunno||"",CUD.name);
+}
+window.addEventListener("beforeunload",function(){
+  flushPendingSave();
+  try{for(const t in fuT){clearTimeout(fuT[t]);}
+    const uid=CU&&CU.uid,y=ws.year,m=ws.month;
+    if(uid&&ws.view==="unico"){for(let i=0;i<20;i++){const ts=cache[tsId(uid,y,m,i)];if(ts&&ts.mansione)saveTS(uid,y,m,i,ts.days||{},ts.mansione||"",ts.sede||"",ts.dettagli||"",ts.comune||"",ts.alunno||"",CUD.name)}}
+  }catch(e){}
+});
 window.toggleMot=function(d){
   const uid=CU.uid,y=ws.year,m=ws.month,si=ws.si,k=tsId(uid,y,m,si);
   const e=(cache[k]&&cache[k].days&&cache[k].days[d])||{};
@@ -1087,7 +1112,7 @@ async function renderFoglioUnico(){
   h+=`</div>`;
   h+=`<div style="padding:6px 14px;background:#EAF3FB;border-left:8px solid #0047FF;border-bottom:2px solid #0047FF;font-size:12px;font-weight:700;color:#1a1a1a">📋 FOGLIO UNICO — scrivi qui le ore di tutti i tuoi servizi; vengono comunque salvate divise per servizio</div>`;
   if(monthLocked)h+=`<div style="margin:10px 14px;padding:10px 14px;background:#FEF6F6;border:2px solid var(--red);border-radius:8px;font-size:13px;font-weight:700;color:#A32D2D">🔒 Questo mese è stato chiuso dall'amministratore: puoi solo consultarlo.</div>`;
-  h+=`<div style="padding:14px 14px 0">`+instrBox("Qui scrivi le ore di tutti i tuoi servizi in <b>una sola tabella</b>. Per ogni giorno scegli il <b>servizio</b> nella tendina colorata e scrivi gli orari. <b>Non serve mettere i due punti</b>: puoi scrivere <b>900</b> per le 09:00, <b>930</b> per le 09:30, <b>1430</b> per le 14:30; il programma li sistema da solo. Se in un giorno hai lavorato su <b>più servizi</b>, premi il pulsantino <b>➕</b> accanto al giorno: si aggiunge un'altra riga. Se spezzi la giornata in <b>più fasce</b>, usa i pulsantini <b>➕</b> sopra le colonne \"Ore dirette\" e \"Ore indirette\". L'<b>assenza</b> vale per tutta la giornata: la trovi una volta sola per giorno. Alla fine premi il pulsante <b>💾 Salva</b>.","fun")+`</div>`;
+  h+=`<div style="padding:14px 14px 0">`+instrBox("Qui scrivi le ore di tutti i tuoi servizi in <b>una sola tabella</b>. Per ogni giorno scegli il <b>servizio</b> nella tendina colorata e scrivi gli orari. <b>Non serve mettere i due punti</b>: scrivi l'ora con <b>4 cifre</b> e il programma la sistema da sola. Per esempio <b>0900</b> diventa 09:00, <b>0930</b> diventa 09:30, <b>1430</b> diventa 14:30. Ricordati lo <b>zero davanti</b> per le ore prima delle 10 (es. 0800 per le otto). Se in un giorno hai lavorato su <b>più servizi</b>, premi il pulsantino <b>➕</b> accanto al giorno: si aggiunge un'altra riga. Se spezzi la giornata in <b>più fasce</b>, usa i pulsantini <b>➕</b> sopra le colonne \"Ore dirette\" e \"Ore indirette\". L'<b>assenza</b> vale per tutta la giornata: la trovi una volta sola per giorno. Alla fine premi il pulsante <b>💾 Salva</b>.","fun")+`</div>`;
   // Tabella
   h+=`<div style="padding:0 14px 14px;overflow-x:auto"><table class="tbl"><thead><tr>`;
   // Comandi ➕/➖ per le fasce (globali del foglio unico)
@@ -1161,14 +1186,14 @@ async function renderFoglioUnico(){
       const cellBg=bound?"":"background:#F5F5F2";
       // Fasce dirette dinamiche
       for(const[cf,ct]of DIRF){
-        h+=`<td><input class="ti" ${dis} value="${esc(e[cf]||"")}" oninput="uDU(${d},${row.si},'${cf}',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'${cf}',this.value))" style="${cellBg}"></td>`;
-        h+=`<td><input class="ti" ${dis} value="${esc(e[ct]||"")}" oninput="uDU(${d},${row.si},'${ct}',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'${ct}',this.value))" style="${cellBg}"></td>`;
+        h+=`<td><input class="ti" ${dis} value="${esc(e[cf]||"")}" data-fld="${cf}" oninput="uDU(${d},${row.si},'${cf}',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'${cf}',this.value),${d},${row.si})" style="${cellBg}"></td>`;
+        h+=`<td><input class="ti" ${dis} value="${esc(e[ct]||"")}" data-fld="${ct}" oninput="uDU(${d},${row.si},'${ct}',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'${ct}',this.value),${d},${row.si})" style="${cellBg}"></td>`;
       }
       // Fasce indirette dinamiche (dalle/alle + motivo)
       for(let ii=0;ii<INDF.length;ii++){
         const cf=INDF[ii][0],ct=INDF[ii][1],cm=INDF[ii][2];
-        h+=`<td class="${ii===0?"sep":""}"><input class="ti" ${dis} value="${esc(e[cf]||"")}" oninput="uDU(${d},${row.si},'${cf}',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'${cf}',this.value))" style="${cellBg}"></td>`;
-        h+=`<td><input class="ti" ${dis} value="${esc(e[ct]||"")}" oninput="uDU(${d},${row.si},'${ct}',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'${ct}',this.value))" style="${cellBg}"></td>`;
+        h+=`<td class="${ii===0?"sep":""}"><input class="ti" ${dis} value="${esc(e[cf]||"")}" data-fld="${cf}" oninput="uDU(${d},${row.si},'${cf}',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'${cf}',this.value),${d},${row.si})" style="${cellBg}"></td>`;
+        h+=`<td><input class="ti" ${dis} value="${esc(e[ct]||"")}" data-fld="${ct}" oninput="uDU(${d},${row.si},'${ct}',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'${ct}',this.value),${d},${row.si})" style="${cellBg}"></td>`;
         const motCur=motNorm(e[cm]||"");
         const motList=MOT_TYPES.slice();if(motCur&&motList.indexOf(motCur)<0)motList.push(motCur);
         h+=`<td><select class="sl" ${dis} onchange="uDU(${d},${row.si},'${cm}',this.value)" style="${cellBg}">`;
@@ -1214,8 +1239,6 @@ window.uDU=function(d,si,f,v){
   if(!cache[k].days)cache[k].days={};
   if(!cache[k].days[d])cache[k].days[d]={};
   cache[k].days[d][f]=v;
-  const overlap=checkOverlap(cache[k].days[d]);
-  if(overlap){alert("⚠️ Sovrapposizione oraria!\n"+overlap+" si sovrappongono.\nCorreggi gli orari.");cache[k].days[d][f]="";renderFoglioUnico();return}
   clearTimeout(fuT[si]);
   fuT[si]=setTimeout(()=>{const c2=cache[k];saveTS(uid,y,m,si,c2.days,c2.mansione||"",c2.sede||"",c2.dettagli||"",c2.comune||"",c2.alunno||"",CUD.name)},800);
   const e=cache[k].days[d];const tot=calcOrd(e)+calcInd(e);
@@ -1273,11 +1296,29 @@ window.manualSaveU=async function(){
     if(btn){btn.textContent="Errore!";btn.style.background="#E24B4A";setTimeout(()=>{btn.textContent="💾 Salva";btn.style.background="#1D9E75";btn.disabled=false},2000)}
   }
 };
-// Alla perdita di focus di un campo orario: converte 900->09:00 ecc., poi salva (e ricontrolla).
-window.normBlur=function(el,cb){
+// Alla perdita di focus di un campo orario: converte 900->09:00 ecc., salva, poi verifica le sovrapposizioni del giorno.
+// d = giorno; si = indice servizio (per il foglio unico). Se si e' omesso usa ws.si (foglio per servizio).
+window.normBlur=function(el,cb,d,si){
   const nv=normT(el.value);
   if(nv!==el.value)el.value=nv;
   if(cb)cb();
+  if(d==null)return;
+  const uid=CU.uid,y=ws.year,m=ws.month;
+  const sidx=(si==null)?ws.si:si;
+  const k=tsId(uid,y,m,sidx);
+  const e=cache[k]&&cache[k].days?cache[k].days[d]:null;
+  if(!e)return;
+  const ov=checkOverlap(e);
+  const ovCross=ov?false:checkOverlapCrossServ(uid,y,m,d,sidx,e);
+  if(ov||ovCross){
+    if(ov)alert("⚠️ Sovrapposizione oraria nel giorno "+d+"!\n"+ov+" si sovrappongono.\nCorreggi gli orari.");
+    else alert("⚠️ Sovrapposizione tra servizi diversi nel giorno "+d+"!\nQuesto orario si sovrappone al servizio: "+ovCross+".\nNon puoi essere in due servizi nello stesso momento.\nCorreggi gli orari.");
+    const fld=el.getAttribute("data-fld");
+    if(fld&&e[fld]!==undefined){e[fld]="";el.value=""}
+    const ts=cache[k];
+    if(ts)saveTS(uid,y,m,sidx,ts.days,ts.mansione||"",ts.sede||"",ts.dettagli||"",ts.comune||"",ts.alunno||"",CUD.name);
+    if(ws.view==="unico")renderFoglioUnico();else renderWorker();
+  }
 };
 function checkOverlap(e){
   const ranges=[];
@@ -1290,6 +1331,33 @@ function checkOverlap(e){
   }
   return false;
 }
+// Intervalli orari (dirette+indirette) di un entry, come [{from,to}]
+function entryRanges(e){
+  const r=[];
+  const pairs=[["t1f","t1t"],["t2f","t2t"],["t3f","t3t"],["t4f","t4t"],["iF","iT"],["iF2","iT2"]];
+  for(const[f,tt]of pairs){const a=parseT(e[f]),b=parseT(e[tt]);if(a!==null&&b!==null&&b>a)r.push({from:a,to:b})}
+  return r;
+}
+// Sovrapposizione del giorno d fra il servizio siNew e gli ALTRI servizi dello stesso giorno.
+// Restituisce il nome del servizio in conflitto, oppure false.
+function checkOverlapCrossServ(uid,y,m,d,siNew,newEntry){
+  const mine=entryRanges(newEntry);
+  if(!mine.length)return false;
+  for(let i=0;i<20;i++){
+    if(i===siNew)continue;
+    const ts=cache[tsId(uid,y,m,i)];
+    if(!ts||!ts.days)continue;
+    const oe=ts.days[d];
+    if(!oe||oe.absence)continue;
+    const others=entryRanges(oe);
+    for(const a of mine)for(const b of others){
+      if(a.from<b.to&&b.from<a.to){
+        return (ts.mansione||"")+(ts.sede?" / "+ts.sede:"")||SVC_LABELS[i];
+      }
+    }
+  }
+  return false;
+}
 window.uD=function(d,f,v){
   if(monthLocked){alert("Questo mese è stato chiuso dall'amministratore. Non è possibile modificare.");renderWorker();return}
   const uid=CU.uid,y=ws.year,m=ws.month,si=ws.si,k=tsId(uid,y,m,si);
@@ -1297,10 +1365,8 @@ window.uD=function(d,f,v){
   if(!cache[k].days)cache[k].days={};
   if(!cache[k].days[d])cache[k].days[d]={};
   cache[k].days[d][f]=v;
-  // Check overlap
-  const overlap=checkOverlap(cache[k].days[d]);
-  if(overlap){alert("⚠️ Sovrapposizione oraria!\n"+overlap+" si sovrappongono.\nCorreggi gli orari.");cache[k].days[d][f]="";renderWorker();return}
-  clearTimeout(svTimer);svTimer=setTimeout(()=>saveTS(uid,y,m,si,cache[k].days,cache[k].mansione||"",cache[k].sede||"",cache[k].dettagli||"",cache[k].comune||"",cache[k].alunno||"",CUD.name),600);
+  _pendingSave={uid:uid,y:y,m:m,si:si,k:k};
+  clearTimeout(svTimer);svTimer=setTimeout(()=>{saveTS(uid,y,m,si,cache[k].days,cache[k].mansione||"",cache[k].sede||"",cache[k].dettagli||"",cache[k].comune||"",cache[k].alunno||"",CUD.name);_pendingSave=null},600);
   // Update row total and footer totals immediately
   const e=cache[k].days[d]||{};
   const ord=calcOrd(e),ind=calcInd(e),tot=ord+ind;
@@ -1313,7 +1379,7 @@ window.uD=function(d,f,v){
   if(foot){const fc=foot.querySelectorAll('td');if(fc.length>=6){fc[1].innerHTML='Ord: '+(fmtDec(tO)||'0,00');fc[2].innerHTML='Ind: '+(fmtDec(tI)||'0,00');fc[fc.length-1].innerHTML=fmtDec(tO+tI)||'0,00'}}
 };
 // Un'entry ha dati (ore/permessi/spole/motivi)?
-function entryHasData(e){if(!e)return false;return !!(e.t1f||e.t1t||e.t2f||e.t2t||e.iF||e.iT||e.mot||e.perm||e.spole)}
+function entryHasData(e){if(!e)return false;return !!(e.t1f||e.t1t||e.t2f||e.t2t||e.t3f||e.t3t||e.t4f||e.t4t||e.iF||e.iT||e.mot||e.iF2||e.iT2||e.mot2||e.perm||e.spole)}
 // ===== ASSENZA = GIORNATA INTERA =====
 // Imposta (o toglie, v="") l'assenza del giorno d su TUTTI i servizi configurati del mese.
 // Regole confermate: propagazione automatica; rimozione da uno = rimozione da tutti (opzione A);
@@ -1338,29 +1404,34 @@ async function applyAbsGiornata(d,v){
   if(v&&diffType.length){
     alert("⚠️ Il giorno "+d+" aveva un'assenza diversa (\""+diffType[0]+"\") su un altro servizio.\nL'assenza vale per tutta la giornata: ora sarà \""+v+"\" su tutti i servizi.");
   }
-  // Applico a tutti i servizi configurati
+  // Applico a tutti i servizi configurati con UN BATCH ATOMICO:
+  // o tutte le scritture vanno a buon fine, o nessuna (niente stato "a metà").
+  const batch=db.batch();
+  let nBatch=0;
   for(const i of conf){
     const k=tsId(uid,y,m,i);
     let ts=await loadTS(uid,y,m,i);
     let changed=false;
     if(!ts){
-      if(!v)continue; // niente da togliere
+      if(!v)continue;
       ts={days:{},mansione:anags[i].mansione||"",sede:anags[i].sede||"",dettagli:anags[i].dettagli||"",comune:anags[i].comune||"",alunno:anags[i].alunno||"",workerUid:uid,workerName:CUD.name,year:y,month:m,serviceIdx:i};
       changed=true;
     }
     if(!ts.mansione&&anags[i].mansione){ts.mansione=anags[i].mansione;ts.sede=anags[i].sede||"";ts.dettagli=anags[i].dettagli||"";ts.comune=anags[i].comune||"";ts.alunno=anags[i].alunno||"";changed=true}
     if(!ts.days)ts.days={};
     if(v){
-      // Assenza intera: cancella tutto e lascia solo absence
       ts.days[d]={absence:v};changed=true;
     } else if(ts.days[d]&&ts.days[d].absence){
       delete ts.days[d].absence;changed=true;
     }
     if(changed){
       cache[k]=ts;
-      await saveTS(uid,y,m,i,ts.days,ts.mansione||"",ts.sede||"",ts.dettagli||"",ts.comune||"",ts.alunno||"",CUD.name);
+      const p={days:ts.days,mansione:ts.mansione||"",sede:ts.sede||"",dettagli:ts.dettagli||"",comune:ts.comune||"",alunno:ts.alunno||"",workerUid:uid,workerName:CUD.name,year:y,month:m,serviceIdx:i,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+      batch.set(db.collection("timesheets").doc(k),p,{merge:true});
+      nBatch++;
     }
   }
+  if(nBatch>0)await batch.commit();
   return true;
 }
 window.onAbs=async function(d,v){
