@@ -253,7 +253,33 @@ function normT(v){
   if(h>=0&&h<24&&mi>=0&&mi<60)return String(h).padStart(2,"0")+":"+String(mi).padStart(2,"0");
   return v;
 }
-function parseT(s){if(!s)return null;const n=normT(String(s).trim());const p=n.replace(/[,;]/,".").replace(":",".").split(".");if(p.length<2)return null;const h=parseInt(p[0]),m=parseInt(p[1]||"0");if(isNaN(h)||isNaN(m))return null;return h+m/60}
+// Normalizzazione PERMISSIVA per la LETTURA di dati storici.
+// Interpreta anche i vecchi orari senza due punti: 900->09:00, 130->01:30, 9->09:00.
+// Usata SOLO da parseT (calcolo) e in visualizzazione, MAI per validare i nuovi inserimenti.
+// Regola storica confermata: cifre finali = minuti, iniziali = ora (900=9:00, 130=1:30, 1330=13:30).
+function normTRead(v){
+  if(!v)return v;
+  let s=String(v).trim();
+  if(!s)return s;
+  s=s.replace(/[.,;hH]/g,":");
+  if(s.indexOf(":")>=0){
+    const p=s.split(":");
+    if(p.length===2){
+      const h=parseInt(p[0],10),mi=p[1]===""?0:parseInt(p[1],10);
+      if(!Number.isNaN(h)&&!Number.isNaN(mi)&&h>=0&&h<24&&mi>=0&&mi<60)return String(h).padStart(2,"0")+":"+String(mi).padStart(2,"0");
+    }
+    return v;
+  }
+  if(!/^\d+$/.test(s))return v;
+  let h,mi;
+  if(s.length<=2){h=parseInt(s,10);mi=0}
+  else if(s.length===3){h=parseInt(s.substring(0,1),10);mi=parseInt(s.substring(1),10)}
+  else if(s.length===4){h=parseInt(s.substring(0,2),10);mi=parseInt(s.substring(2),10)}
+  else return v;
+  if(h>=0&&h<24&&mi>=0&&mi<60)return String(h).padStart(2,"0")+":"+String(mi).padStart(2,"0");
+  return v;
+}
+function parseT(s){if(!s)return null;const n=normTRead(String(s).trim());const p=n.replace(/[,;]/,".").replace(":",".").split(".");if(p.length<2)return null;const h=parseInt(p[0]),m=parseInt(p[1]||"0");if(isNaN(h)||isNaN(m))return null;return h+m/60}
 function fmtH(n){if(!n||n<=0)return"";const h=Math.floor(n),m=Math.round((n-h)*60);return h+":"+(m<10?"0":"")+m}
 function fmtDec(n){if(!n||n<=0)return"";const r=Math.round((n+Number.EPSILON)*100)/100;return r.toFixed(2).replace(".",",")}
 function calcOrd(e){let t=0;const pairs=[["t1f","t1t"],["t2f","t2t"],["t3f","t3t"],["t4f","t4t"]];for(const[f,tt]of pairs){const a=parseT(e[f]),b=parseT(e[tt]);if(a!==null&&b!==null&&b>a)t+=b-a}return t}
@@ -322,7 +348,15 @@ auth.onAuthStateChanged(async u=>{
 });
 
 async function loadTS(uid,y,m,si){const k=tsId(uid,y,m,si);if(cache[k]!==undefined)return cache[k];try{const d=await db.collection("timesheets").doc(k).get();if(d.exists){cache[k]=d.data();return d.data()}else{cache[k]=null;return null}}catch(e){return null}}
-async function saveTS(uid,y,m,si,days,mansione,sede,dettagli,comune,alunno,wName){const k=tsId(uid,y,m,si);const p={days,mansione:mansione||"",sede:sede||"",dettagli:dettagli||"",comune:comune||"",alunno:alunno||"",workerUid:uid,workerName:wName||"",year:y,month:m,serviceIdx:si,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};cache[k]=p;try{await db.collection("timesheets").doc(k).set(p)}catch(e){console.error(e)}}
+async function saveTS(uid,y,m,si,days,mansione,sede,dettagli,comune,alunno,wName){const k=tsId(uid,y,m,si);
+  // Riscrittura pulita: normalizza gli orari storici (900->09:00) prima di salvare.
+  // Cosi' il database si normalizza da solo, senza interventi massivi.
+  if(days){const TF=["t1f","t1t","t2f","t2t","t3f","t3t","t4f","t4t","iF","iT","iF2","iT2"];
+    for(const dk in days){const e=days[dk];if(!e||typeof e!=="object")continue;
+      for(const fld of TF){if(e[fld]){const nv=normTRead(e[fld]);if(/^\d{1,2}:\d{2}$/.test(nv))e[fld]=nv}}
+    }
+  }
+  const p={days,mansione:mansione||"",sede:sede||"",dettagli:dettagli||"",comune:comune||"",alunno:alunno||"",workerUid:uid,workerName:wName||"",year:y,month:m,serviceIdx:si,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};cache[k]=p;try{await db.collection("timesheets").doc(k).set(p)}catch(e){console.error(e)}}
 
 // ========== WORKER VIEW ==========
 let ws={year:new Date().getFullYear(),month:new Date().getMonth()+1,si:0,view:"home",addingService:false,fuExtra:{}};
@@ -991,13 +1025,13 @@ function buildTable(days,nd,y,m,readonly,opts){
     h+=`<td class="dc">${d}</td><td class="dn${red?" red":""}">${dayN(y,m,d)}</td>`;
     // Fasce dirette
     for(const[cf,ct]of DIR){
-      h+=`<td class="sep${hasAbs?" bk":""}"><input class="ti" data-fld="${cf}" value="${esc(e[cf]||"")}" ${hasAbs?"disabled":ronly} oninput="uD(${d},'${cf}',this.value)" onblur="normBlur(this,()=>uD(${d},'${cf}',this.value),${d})"></td>`;
-      h+=`<td${hasAbs?' class="bk"':""}><input class="ti" data-fld="${ct}" value="${esc(e[ct]||"")}" ${hasAbs?"disabled":ronly} oninput="uD(${d},'${ct}',this.value)" onblur="normBlur(this,()=>uD(${d},'${ct}',this.value),${d})"></td>`;
+      h+=`<td class="sep${hasAbs?" bk":""}"><input class="ti" data-fld="${cf}" value="${esc(normTRead(e[cf]||""))}" ${hasAbs?"disabled":ronly} oninput="uD(${d},'${cf}',this.value)" onblur="normBlur(this,()=>uD(${d},'${cf}',this.value),${d})"></td>`;
+      h+=`<td${hasAbs?' class="bk"':""}><input class="ti" data-fld="${ct}" value="${esc(normTRead(e[ct]||""))}" ${hasAbs?"disabled":ronly} oninput="uD(${d},'${ct}',this.value)" onblur="normBlur(this,()=>uD(${d},'${ct}',this.value),${d})"></td>`;
     }
     // Fasce indirette
     for(const[cf,ct,cm]of IND){
-      h+=`<td class="sep${hasAbs?" bk":""}"><input class="ti" data-fld="${cf}" value="${esc(e[cf]||"")}" ${hasAbs?"disabled":ronly} oninput="uD(${d},'${cf}',this.value);toggleMot(${d})" onblur="normBlur(this,()=>{uD(${d},'${cf}',this.value);toggleMot(${d})},${d})"></td>`;
-      h+=`<td${hasAbs?' class="bk"':""}><input class="ti" data-fld="${ct}" value="${esc(e[ct]||"")}" ${hasAbs?"disabled":ronly} oninput="uD(${d},'${ct}',this.value);toggleMot(${d})" onblur="normBlur(this,()=>{uD(${d},'${ct}',this.value);toggleMot(${d})},${d})"></td>`;
+      h+=`<td class="sep${hasAbs?" bk":""}"><input class="ti" data-fld="${cf}" value="${esc(normTRead(e[cf]||""))}" ${hasAbs?"disabled":ronly} oninput="uD(${d},'${cf}',this.value);toggleMot(${d})" onblur="normBlur(this,()=>{uD(${d},'${cf}',this.value);toggleMot(${d})},${d})"></td>`;
+      h+=`<td${hasAbs?' class="bk"':""}><input class="ti" data-fld="${ct}" value="${esc(normTRead(e[ct]||""))}" ${hasAbs?"disabled":ronly} oninput="uD(${d},'${ct}',this.value);toggleMot(${d})" onblur="normBlur(this,()=>{uD(${d},'${ct}',this.value);toggleMot(${d})},${d})"></td>`;
     }
     // Motivazioni (una per fascia indiretta)
     for(const[cf,ct,cm]of IND){
@@ -1186,14 +1220,14 @@ async function renderFoglioUnico(){
       const cellBg=bound?"":"background:#F5F5F2";
       // Fasce dirette dinamiche
       for(const[cf,ct]of DIRF){
-        h+=`<td><input class="ti" ${dis} value="${esc(e[cf]||"")}" data-fld="${cf}" oninput="uDU(${d},${row.si},'${cf}',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'${cf}',this.value),${d},${row.si})" style="${cellBg}"></td>`;
-        h+=`<td><input class="ti" ${dis} value="${esc(e[ct]||"")}" data-fld="${ct}" oninput="uDU(${d},${row.si},'${ct}',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'${ct}',this.value),${d},${row.si})" style="${cellBg}"></td>`;
+        h+=`<td><input class="ti" ${dis} value="${esc(normTRead(e[cf]||""))}" data-fld="${cf}" oninput="uDU(${d},${row.si},'${cf}',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'${cf}',this.value),${d},${row.si})" style="${cellBg}"></td>`;
+        h+=`<td><input class="ti" ${dis} value="${esc(normTRead(e[ct]||""))}" data-fld="${ct}" oninput="uDU(${d},${row.si},'${ct}',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'${ct}',this.value),${d},${row.si})" style="${cellBg}"></td>`;
       }
       // Fasce indirette dinamiche (dalle/alle + motivo)
       for(let ii=0;ii<INDF.length;ii++){
         const cf=INDF[ii][0],ct=INDF[ii][1],cm=INDF[ii][2];
-        h+=`<td class="${ii===0?"sep":""}"><input class="ti" ${dis} value="${esc(e[cf]||"")}" data-fld="${cf}" oninput="uDU(${d},${row.si},'${cf}',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'${cf}',this.value),${d},${row.si})" style="${cellBg}"></td>`;
-        h+=`<td><input class="ti" ${dis} value="${esc(e[ct]||"")}" data-fld="${ct}" oninput="uDU(${d},${row.si},'${ct}',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'${ct}',this.value),${d},${row.si})" style="${cellBg}"></td>`;
+        h+=`<td class="${ii===0?"sep":""}"><input class="ti" ${dis} value="${esc(normTRead(e[cf]||""))}" data-fld="${cf}" oninput="uDU(${d},${row.si},'${cf}',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'${cf}',this.value),${d},${row.si})" style="${cellBg}"></td>`;
+        h+=`<td><input class="ti" ${dis} value="${esc(normTRead(e[ct]||""))}" data-fld="${ct}" oninput="uDU(${d},${row.si},'${ct}',this.value)" onblur="normBlur(this,()=>uDU(${d},${row.si},'${ct}',this.value),${d},${row.si})" style="${cellBg}"></td>`;
         const motCur=motNorm(e[cm]||"");
         const motList=MOT_TYPES.slice();if(motCur&&motList.indexOf(motCur)<0)motList.push(motCur);
         h+=`<td><select class="sl" ${dis} onchange="uDU(${d},${row.si},'${cm}',this.value)" style="${cellBg}">`;
